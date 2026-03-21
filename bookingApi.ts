@@ -154,8 +154,10 @@ export async function getSessionBookings({
   const response = await fetch(url);
 
   if (!response.ok) {
+    const body = await response.text();
+
     throw new Error(
-      `Request failed: ${response.status} ${response.statusText}`,
+      `Request failed: ${response.status} ${response.statusText} - ${body}`,
     );
   }
 
@@ -184,8 +186,10 @@ export async function getBookings({
   const response = await fetch(url);
 
   if (!response.ok) {
+    const body = await response.text();
+
     throw new Error(
-      `Request failed: ${response.status} ${response.statusText}`,
+      `Request failed: ${response.status} ${response.statusText} - ${body}`,
     );
   }
 
@@ -212,8 +216,10 @@ export async function getEventsForDay({
   const response = await fetch(url);
 
   if (!response.ok) {
+    const body = await response.text();
+
     throw new Error(
-      `Request failed: ${response.status} ${response.statusText}`,
+      `Request failed: ${response.status} ${response.statusText} - ${body}`,
     );
   }
 
@@ -261,6 +267,7 @@ export async function bookSession(params: BookSessionParams): Promise<void> {
 
   if (!response.ok) {
     const body = await response.text();
+
     throw new Error(
       `Request failed: ${response.status} ${response.statusText} - ${body}`,
     );
