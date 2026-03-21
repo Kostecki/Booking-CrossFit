@@ -260,8 +260,9 @@ export async function bookSession(params: BookSessionParams): Promise<void> {
   const response = await fetch(url);
 
   if (!response.ok) {
+    const body = await response.text();
     throw new Error(
-      `BookSession failed: ${response.status} ${response.statusText}`,
+      `Request failed: ${response.status} ${response.statusText} - ${body}`,
     );
   }
 
