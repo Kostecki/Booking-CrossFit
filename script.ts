@@ -15,8 +15,8 @@ function requireEnv(name: string): string {
   return value;
 }
 
-const username = requireEnv("USERNAME");
-const password = requireEnv("PASSWORD");
+const username = requireEnv("API_USERNAME");
+const password = requireEnv("API_PASSWORD");
 const PUSHOVER_TOKEN = requireEnv("PUSHOVER_TOKEN");
 const PUSHOVER_USER = requireEnv("PUSHOVER_USER");
 
@@ -334,6 +334,7 @@ async function main() {
 
 main().catch(async (error) => {
   console.error(error);
+
   await sendPushoverNotification({
     token: PUSHOVER_TOKEN,
     user: PUSHOVER_USER,
