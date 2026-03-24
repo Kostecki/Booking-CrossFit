@@ -252,8 +252,6 @@ async function main() {
     const sessionLabel = `WOD 17:30 on ${dateLabel}${bookedCountLabel}`;
 
     if (futureBookedTimes.has(sessionStartMs)) {
-      totalBookings++;
-      console.log(`Already booked: ${sessionLabel}`);
       continue;
     }
 
