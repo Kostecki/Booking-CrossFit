@@ -124,6 +124,7 @@ export async function runBookingAutomation({
 		timeZone: centerTimeZone,
 	});
 	console.log(`Today: ${runDate}\n`);
+	console.log("");
 
 	const existingBookings = await getBookings({ username, password });
 	const futureBookings = existingBookings
@@ -161,6 +162,7 @@ export async function runBookingAutomation({
 			bookedDateLabels.length > 0 ? `\n${bookedDateLabels.join("\n")}` : ""
 		}\n`,
 	);
+	console.log("");
 
 	const newlyBooked: string[] = [];
 	let totalBookings = futureBookedTimes.size;
