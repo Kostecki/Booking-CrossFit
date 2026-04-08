@@ -1,16 +1,16 @@
 {
-  "name": "booking-crossfit",
-  "version": "1.0.0",
-  "type": "module",
-  "scripts": {
-    "start": "node --env-file=.env script.ts"
-  },
-  "packageManager": "pnpm@10.28.0",
-  "devDependencies": {
-    "@types/node": "^25.5.0",
-    "typescript": "^5.9.3"
-  },
-  "volta": {
-    "node": "25.8.1"
-  }
+	"name": "booking-crossfit",
+	"version": "1.0.0",
+	"type": "module",
+	"scripts": {
+		"start": "node --env-file=.env script.ts"
+	},
+	"packageManager": "pnpm@10.28.0",
+	"devDependencies": {
+		"@types/node": "^25.5.0",
+		"typescript": "^5.9.3"
+	},
+	"volta": {
+		"node": "25.8.1"
+	}
 }
