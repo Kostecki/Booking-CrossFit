@@ -24,7 +24,8 @@ const people: Record<string, string> = JSON.parse(
 );
 
 const TARGET_WEEKDAYS = [2, 4]; // 2=Tuesday, 4=Thursday (0=Sunday … 6=Saturday)
-const TARGET_BOOKING_COUNT = 4;
+const MAX_SESSIONS_PER_WEEK = 2;
+const MAX_TOTAL_SESSIONS = 4;
 const MAX_SCAN_DAYS = 60;
 const DEFAULT_CALENDAR_LOOKBACK_DAYS = 14;
 const TARGET_HOUR = 17;
@@ -89,7 +90,8 @@ async function main() {
 		centerTimeZone,
 		people,
 		targetWeekdays: TARGET_WEEKDAYS,
-		targetBookingCount: TARGET_BOOKING_COUNT,
+		maxSessionsPerWeek: MAX_SESSIONS_PER_WEEK,
+		maxTotalSessions: MAX_TOTAL_SESSIONS,
 		maxScanDays: MAX_SCAN_DAYS,
 		targetHour: TARGET_HOUR,
 		targetMinute: TARGET_MINUTE,

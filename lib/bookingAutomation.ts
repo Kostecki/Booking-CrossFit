@@ -25,7 +25,8 @@ export type BookingAutomationConfig = {
 	centerTimeZone: string;
 	people: Record<string, string>;
 	targetWeekdays: number[];
-	targetBookingCount: number;
+	maxSessionsPerWeek: number;
+	maxTotalSessions: number;
 	maxScanDays: number;
 	targetHour: number;
 	targetMinute: number;
@@ -107,6 +108,21 @@ function isWodEvent(event: EventItem): boolean {
 	);
 }
 
+function getISOWeekNumber(year: number, month: number, day: number): number {
+	const date = new Date(year, month - 1, day);
+	date.setHours(0, 0, 0, 0);
+	date.setDate(date.getDate() + 4 - (date.getDay() || 7));
+	const yearStart = new Date(date.getFullYear(), 0, 1);
+	const weekNumber = Math.ceil(
+		((date.getTime() - yearStart.getTime()) / 86400000 + 1) / 7,
+	);
+	return weekNumber;
+}
+
+function getWeekKey(year: number, week: number): string {
+	return `${year}-W${String(week).padStart(2, "0")}`;
+}
+
 export async function runBookingAutomation({
 	username,
 	password,
@@ -114,7 +130,8 @@ export async function runBookingAutomation({
 	centerTimeZone,
 	people,
 	targetWeekdays,
-	targetBookingCount,
+	maxSessionsPerWeek,
+	maxTotalSessions,
 	maxScanDays,
 	targetHour,
 	targetMinute,
@@ -158,16 +175,29 @@ export async function runBookingAutomation({
 		return `${date} ${occupancy}`;
 	});
 	console.log(
-		`Currently booked: ${futureBookedTimes.size}/${targetBookingCount}${
+		`Currently booked: ${futureBookedTimes.size}/${maxTotalSessions} sessions${
 			bookedDateLabels.length > 0 ? `\n${bookedDateLabels.join("\n")}` : ""
 		}\n`,
 	);
 	console.log("");
 
-	const newlyBooked: string[] = [];
-	let totalBookings = futureBookedTimes.size;
+	// Build a map of bookings by week
+	const bookingsByWeek = new Map<string, number>();
+	for (const booking of futureBookings) {
+		const { year, month, day } = getTimePartsInZone(booking.ms, centerTimeZone);
+		const weekNumber = getISOWeekNumber(year, month, day);
+		const weekKey = getWeekKey(year, weekNumber);
+		bookingsByWeek.set(weekKey, (bookingsByWeek.get(weekKey) ?? 0) + 1);
+	}
 
-	for (let i = 0; i < maxScanDays && totalBookings < targetBookingCount; i++) {
+	const newlyBooked: string[] = [];
+
+	for (let i = 0; i < maxScanDays; i++) {
+		// Stop if we've reached max total sessions
+		if (futureBookedTimes.size >= maxTotalSessions) {
+			break;
+		}
+
 		const candidateMs = nowMs + i * ONE_DAY_MS;
 		const { year, month, day } = getTimePartsInZone(
 			candidateMs,
@@ -176,6 +206,14 @@ export async function runBookingAutomation({
 		const weekday = new Date(year, month - 1, day).getDay();
 
 		if (!targetWeekdays.includes(weekday)) {
+			continue;
+		}
+
+		// Check if this week already has max sessions
+		const weekNumber = getISOWeekNumber(year, month, day);
+		const weekKey = getWeekKey(year, weekNumber);
+		const sessionsInThisWeek = bookingsByWeek.get(weekKey) ?? 0;
+		if (sessionsInThisWeek >= maxSessionsPerWeek) {
 			continue;
 		}
 
@@ -285,7 +323,9 @@ export async function runBookingAutomation({
 				? `\n  Deltager også: ${trackedPeopleHere.join(", ")}`
 				: "";
 
-		totalBookings++;
+		// Update tracking
+		futureBookedTimes.add(sessionStartMs);
+		bookingsByWeek.set(weekKey, sessionsInThisWeek + 1);
 		console.log(`Booked and verified: ${consoleLabel}${consoleTracked}`);
 		newlyBooked.push(pushoverLabel + pushoverTracked);
 	}
