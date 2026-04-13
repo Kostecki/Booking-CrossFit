@@ -4,6 +4,7 @@ import {
 	getEventsForDay,
 	getSessionBookings,
 } from "../bookingApi.ts";
+import { loadBookingState, saveBookingState } from "./bookingState.ts";
 import { parseDotNetDate } from "./dotNetDate.ts";
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
@@ -30,6 +31,7 @@ export type BookingAutomationConfig = {
 	maxScanDays: number;
 	targetHour: number;
 	targetMinute: number;
+	stateFile: string;
 };
 
 function isEventItem(value: unknown): value is EventItem {
@@ -135,6 +137,7 @@ export async function runBookingAutomation({
 	maxScanDays,
 	targetHour,
 	targetMinute,
+	stateFile,
 }: BookingAutomationConfig): Promise<string[]> {
 	const nowMs = Date.now();
 	const runDate = new Date(nowMs).toLocaleDateString("en-GB", {
@@ -181,10 +184,18 @@ export async function runBookingAutomation({
 	);
 	console.log("");
 
-	// Build a map of bookings by week
+	// Build a map of bookings by week — merge future bookings from the API with
+	// historical timestamps from the state file so past sessions in the current
+	// week still count toward the per-week limit.
+	const historicalTimestamps = await loadBookingState(stateFile);
+	const futureTimestamps = [...futureBookedTimes];
+	const allKnownTimestamps = [
+		...new Set([...historicalTimestamps, ...futureTimestamps]),
+	];
+
 	const bookingsByWeek = new Map<string, number>();
-	for (const booking of futureBookings) {
-		const { year, month, day } = getTimePartsInZone(booking.ms, centerTimeZone);
+	for (const ms of allKnownTimestamps) {
+		const { year, month, day } = getTimePartsInZone(ms, centerTimeZone);
 		const weekNumber = getISOWeekNumber(year, month, day);
 		const weekKey = getWeekKey(year, weekNumber);
 		bookingsByWeek.set(weekKey, (bookingsByWeek.get(weekKey) ?? 0) + 1);
@@ -325,10 +336,13 @@ export async function runBookingAutomation({
 
 		// Update tracking
 		futureBookedTimes.add(sessionStartMs);
+		allKnownTimestamps.push(sessionStartMs);
 		bookingsByWeek.set(weekKey, sessionsInThisWeek + 1);
 		console.log(`Booked and verified: ${consoleLabel}${consoleTracked}`);
 		newlyBooked.push(pushoverLabel + pushoverTracked);
 	}
+
+	await saveBookingState(stateFile, allKnownTimestamps);
 
 	return newlyBooked;
 }

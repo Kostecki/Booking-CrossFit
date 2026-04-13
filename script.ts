@@ -33,6 +33,8 @@ const TARGET_MINUTE = 30;
 const DEFAULT_CALENDAR_REMINDER_MINUTES = 60;
 
 const calendarIcsFile = process.env.CALENDAR_ICS_FILE ?? "./bookings.ics";
+const bookingStateFile =
+	process.env.BOOKING_STATE_FILE ?? "./booking-state.json";
 const calendarLookbackDays = Number(
 	process.env.CALENDAR_LOOKBACK_DAYS ?? DEFAULT_CALENDAR_LOOKBACK_DAYS,
 );
@@ -71,6 +73,7 @@ async function syncCalendarFileFromSourceOfTruth(): Promise<void> {
 	});
 
 	if (result.updated) {
+		console.log("");
 		console.log(
 			`Calendar updated: ${calendarIcsFile} (${result.eventCount} events)`,
 		);
@@ -95,6 +98,7 @@ async function main() {
 		maxScanDays: MAX_SCAN_DAYS,
 		targetHour: TARGET_HOUR,
 		targetMinute: TARGET_MINUTE,
+		stateFile: bookingStateFile,
 	});
 
 	if (newlyBooked.length > 0) {

@@ -3,3 +3,4 @@ node_modules/
 responses/
 *.log
 *.ics
+booking-state.json
