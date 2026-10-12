@@ -1,50 +1,29 @@
 import {
-	bookSession,
-	getBookings,
-	getEventsForDay,
-	getSessionBookings,
+	bookClass,
+	getClassDetail,
+	getClasses,
+	getMyBookings,
+	toApiDateTime,
 } from "../bookingApi.ts";
-import { loadBookingState, saveBookingState } from "./bookingState.ts";
-import { parseDotNetDate } from "./dotNetDate.ts";
+import type { ClazzMobile } from "../types.ts";
 
-const ONE_DAY_MS = 24 * 60 * 60 * 1000;
-
-type EventItem = {
-	RessourceId: number;
-	StartDateTime: string;
-	Title?: string;
-	Name?: string;
-	Text?: string;
-	Capacity?: number;
-	FreeSpace?: number;
-};
+// Statuses that mean the booking no longer counts (cancelled / opted out).
+const CANCELLED_STATUSES = new Set(["OptedOut", "OptedOutTooLate"]);
 
 export type BookingAutomationConfig = {
-	username: string;
-	password: string;
-	centerId: number;
+	token: string;
+	accountId: number;
 	centerTimeZone: string;
+	// participantId (as string) -> display name, for "also attending"
 	people: Record<string, string>;
+	classTitle: string;
 	targetWeekdays: number[];
 	maxSessionsPerWeek: number;
 	maxTotalSessions: number;
-	maxScanDays: number;
 	targetHour: number;
 	targetMinute: number;
-	stateFile: string;
+	dryRun: boolean;
 };
-
-function isEventItem(value: unknown): value is EventItem {
-	if (!value || typeof value !== "object") {
-		return false;
-	}
-
-	const candidate = value as Partial<EventItem>;
-	return (
-		typeof candidate.RessourceId === "number" &&
-		typeof candidate.StartDateTime === "string"
-	);
-}
 
 function getTimePartsInZone(
 	timestampMs: number,
@@ -73,41 +52,18 @@ function getTimePartsInZone(
 	};
 }
 
-function isSameDayInZone(
-	timestampMs: number,
-	referenceMs: number,
-	timeZone: string,
-): boolean {
-	const valueDay = getTimePartsInZone(timestampMs, timeZone);
-	const refDay = getTimePartsInZone(referenceMs, timeZone);
-
-	return (
-		valueDay.year === refDay.year &&
-		valueDay.month === refDay.month &&
-		valueDay.day === refDay.day
-	);
-}
-
 function isTargetTimeInZone(
 	timestampMs: number,
 	targetHour: number,
 	targetMinute: number,
 	timeZone: string,
 ): boolean {
-	const valueTime = getTimePartsInZone(timestampMs, timeZone);
-	return valueTime.hour === targetHour && valueTime.minute === targetMinute;
+	const t = getTimePartsInZone(timestampMs, timeZone);
+	return t.hour === targetHour && t.minute === targetMinute;
 }
 
-function isWodEvent(event: EventItem): boolean {
-	const normalizedName = event.Name?.trim().toUpperCase();
-	const normalizedText = event.Text?.trim().toUpperCase();
-	const normalizedTitle = event.Title?.trim().toUpperCase();
-
-	return (
-		normalizedName === "WOD" ||
-		normalizedText === "WOD" ||
-		normalizedTitle?.startsWith("WOD ") === true
-	);
+function weekdayForDate(year: number, month: number, day: number): number {
+	return new Date(year, month - 1, day).getDay();
 }
 
 function getISOWeekNumber(year: number, month: number, day: number): number {
@@ -115,234 +71,211 @@ function getISOWeekNumber(year: number, month: number, day: number): number {
 	date.setHours(0, 0, 0, 0);
 	date.setDate(date.getDate() + 4 - (date.getDay() || 7));
 	const yearStart = new Date(date.getFullYear(), 0, 1);
-	const weekNumber = Math.ceil(
+	return Math.ceil(
 		((date.getTime() - yearStart.getTime()) / 86400000 + 1) / 7,
 	);
-	return weekNumber;
 }
 
-function getWeekKey(year: number, week: number): string {
+function getWeekKey(timestampMs: number, timeZone: string): string {
+	const { year, month, day } = getTimePartsInZone(timestampMs, timeZone);
+	const week = getISOWeekNumber(year, month, day);
 	return `${year}-W${String(week).padStart(2, "0")}`;
 }
 
+function isTargetClass(cls: ClazzMobile, targetTitle: string): boolean {
+	const target = targetTitle.trim().toUpperCase();
+	const title = cls.title?.trim().toUpperCase();
+	const type = cls.type?.trim().toUpperCase();
+	return title === target || type === target;
+}
+
+function dateLabel(
+	timestampMs: number,
+	timeZone: string,
+	locale: string,
+): string {
+	return new Date(timestampMs).toLocaleDateString(locale, {
+		timeZone,
+		weekday: "long",
+		day: "numeric",
+		month: "long",
+	});
+}
+
+function occupancyLabel(
+	count: number | undefined,
+	max: number | undefined,
+): string {
+	return count !== undefined && max !== undefined ? ` (${count}/${max})` : "";
+}
+
 export async function runBookingAutomation({
-	username,
-	password,
-	centerId,
+	token,
+	accountId,
 	centerTimeZone,
 	people,
+	classTitle,
 	targetWeekdays,
 	maxSessionsPerWeek,
 	maxTotalSessions,
-	maxScanDays,
 	targetHour,
 	targetMinute,
-	stateFile,
+	dryRun,
 }: BookingAutomationConfig): Promise<string[]> {
 	const nowMs = Date.now();
 	const runDate = new Date(nowMs).toLocaleDateString("en-GB", {
 		timeZone: centerTimeZone,
 	});
-	console.log(`Today: ${runDate}\n`);
-	console.log("");
+	console.log(`Today: ${runDate}${dryRun ? "  (DRY RUN)" : ""}\n`);
 
-	const existingBookings = await getBookings({ username, password });
-	const futureBookings = existingBookings
-		.map((b) => ({
-			ms: parseDotNetDate(b.StartDateTime),
-			name: b.Name,
-			capacity: b.Capacity,
-			numberOnList: b.NumberOnList,
-		}))
-		.filter(
-			(
-				b,
-			): b is {
-				ms: number;
-				name: string;
-				capacity: number;
-				numberOnList: number;
-			} => b.ms !== null && b.ms > nowMs,
-		)
+	// --- Current bookings (past + future) come straight from the account ---
+	const bookings = await getMyBookings(token, accountId);
+	const held = bookings
+		.filter((b) => !CANCELLED_STATUSES.has(b.status))
+		.map((b) => ({ ...b, ms: Date.parse(b.begins) }))
+		.filter((b) => Number.isFinite(b.ms));
+
+	const upcoming = held
+		.filter((b) => b.ms > nowMs)
 		.sort((a, b) => a.ms - b.ms);
-	const futureBookedTimes = new Set(futureBookings.map((b) => b.ms));
+	const upcomingClassIds = new Set(upcoming.map((b) => b.classId));
 
-	const bookedDateLabels = futureBookings.map((b) => {
-		const date = new Date(b.ms).toLocaleDateString("en-GB", {
-			timeZone: centerTimeZone,
-			weekday: "long",
-			day: "numeric",
-			month: "long",
-		});
-		const occupancy = `(${b.numberOnList}/${b.capacity})`;
-		return `${date} ${occupancy}`;
-	});
-	console.log(
-		`Currently booked: ${futureBookedTimes.size}/${maxTotalSessions} sessions${
-			bookedDateLabels.length > 0 ? `\n${bookedDateLabels.join("\n")}` : ""
-		}\n`,
-	);
-	console.log("");
-
-	// Build a map of bookings by week — merge future bookings from the API with
-	// historical timestamps from the state file so past sessions in the current
-	// week still count toward the per-week limit.
-	const historicalTimestamps = await loadBookingState(stateFile);
-	const futureTimestamps = [...futureBookedTimes];
-	const allKnownTimestamps = [
-		...new Set([...historicalTimestamps, ...futureTimestamps]),
-	];
-
+	// Weekly counts use all held bookings (so earlier-this-week sessions still count).
 	const bookingsByWeek = new Map<string, number>();
-	for (const ms of allKnownTimestamps) {
-		const { year, month, day } = getTimePartsInZone(ms, centerTimeZone);
-		const weekNumber = getISOWeekNumber(year, month, day);
-		const weekKey = getWeekKey(year, weekNumber);
+	for (const b of held) {
+		const key = getWeekKey(b.ms, centerTimeZone);
+		bookingsByWeek.set(key, (bookingsByWeek.get(key) ?? 0) + 1);
+	}
+
+	const bookedLabels = upcoming.map((b) =>
+		dateLabel(b.ms, centerTimeZone, "en-GB"),
+	);
+	console.log(
+		`Currently booked (upcoming): ${upcoming.length}/${maxTotalSessions}` +
+			(bookedLabels.length > 0 ? `\n${bookedLabels.join("\n")}` : "") +
+			"\n",
+	);
+
+	let upcomingCount = upcoming.length;
+	if (upcomingCount >= maxTotalSessions) {
+		console.log(
+			`Already at the target of ${maxTotalSessions} booked sessions — nothing to do.`,
+		);
+		return [];
+	}
+
+	// --- One call returns the whole bookable window ---
+	const start = getTimePartsInZone(nowMs, centerTimeZone);
+	const startIso = toApiDateTime(start.year, start.month, start.day);
+	const classes = await getClasses(token, startIso);
+
+	// Candidate target sessions: WOD, at the target time, on a target weekday, in the future.
+	const candidates = classes
+		.map((cls) => ({ cls, ms: Date.parse(cls.begins) }))
+		.filter(
+			({ cls, ms }) =>
+				Number.isFinite(ms) &&
+				ms > nowMs &&
+				isTargetClass(cls, classTitle) &&
+				isTargetTimeInZone(ms, targetHour, targetMinute, centerTimeZone),
+		)
+		.filter(({ ms }) => {
+			const { year, month, day } = getTimePartsInZone(ms, centerTimeZone);
+			return targetWeekdays.includes(weekdayForDate(year, month, day));
+		})
+		.sort((a, b) => a.ms - b.ms);
+
+	const timeLabel = `${classTitle} ${String(targetHour).padStart(2, "0")}:${String(targetMinute).padStart(2, "0")}`;
+	const newlyBooked: string[] = [];
+
+	for (const { cls, ms } of candidates) {
+		if (upcomingCount >= maxTotalSessions) break;
+		if (upcomingClassIds.has(cls.id)) continue; // already booked
+
+		const weekKey = getWeekKey(ms, centerTimeZone);
+		if ((bookingsByWeek.get(weekKey) ?? 0) >= maxSessionsPerWeek) continue;
+
+		const labelEn = dateLabel(ms, centerTimeZone, "en-GB");
+		const labelDa = dateLabel(ms, centerTimeZone, "da-DK");
+
+		if (dryRun) {
+			const occ = occupancyLabel(
+				cls.numberOfParticipants,
+				cls.maximumNumberOfParticipants,
+			);
+			const full = cls.hasSeatsLeft === false;
+			console.log(
+				`[dry-run] Would book: ${timeLabel} on ${labelEn}${occ}${full ? " (WAITING LIST)" : ""}`,
+			);
+			newlyBooked.push(
+				`${timeLabel} d. ${labelDa}${occ}${full ? " (VENTELISTE)" : ""}`,
+			);
+			upcomingCount++;
+			upcomingClassIds.add(cls.id);
+			bookingsByWeek.set(weekKey, (bookingsByWeek.get(weekKey) ?? 0) + 1);
+			continue;
+		}
+
+		console.log(`Booking: ${timeLabel} on ${labelEn}`);
+		const booking = await bookClass(token, {
+			classHourId: cls.id,
+			accountId,
+		});
+
+		// Verify by re-reading the account's bookings.
+		const updated = await getMyBookings(token, accountId);
+		const verified = updated.some(
+			(b) => b.classId === cls.id && !CANCELLED_STATUSES.has(b.status),
+		);
+		if (!verified) {
+			throw new Error(
+				`Booking verification failed for ${timeLabel} on ${labelEn}`,
+			);
+		}
+
+		const onWaitingList = booking.status !== "SignedUp";
+
+		// Occupancy + "also attending" from the class detail (post-booking).
+		let trackedHere: string[] = [];
+		let occ = "";
+		try {
+			const detail = await getClassDetail(token, cls.id);
+			occ = occupancyLabel(
+				detail.numberOfParticipants,
+				detail.maximumNumberOfParticipants,
+			);
+			trackedHere = (detail.participants ?? [])
+				.filter((p) => people[String(p.participantId)])
+				.map((p) => people[String(p.participantId)] as string)
+				.sort();
+		} catch {
+			// Detail is best-effort; booking already succeeded and verified.
+		}
+
+		const consoleTracked =
+			trackedHere.length > 0
+				? ` - also attending: ${trackedHere.join(", ")}`
+				: "";
+		const pushoverTracked =
+			trackedHere.length > 0
+				? `\n  Deltager også: ${trackedHere.join(", ")}`
+				: "";
+
+		console.log(
+			`Booked and verified: ${timeLabel} on ${labelEn}${occ}${onWaitingList ? " (WAITING LIST)" : ""}${consoleTracked}`,
+		);
+		newlyBooked.push(
+			`${timeLabel} d. ${labelDa}${occ}${onWaitingList ? " (VENTELISTE)" : ""}${pushoverTracked}`,
+		);
+
+		upcomingCount++;
+		upcomingClassIds.add(cls.id);
 		bookingsByWeek.set(weekKey, (bookingsByWeek.get(weekKey) ?? 0) + 1);
 	}
 
-	const newlyBooked: string[] = [];
-
-	for (let i = 0; i < maxScanDays; i++) {
-		// Stop if we've reached max total sessions
-		if (futureBookedTimes.size >= maxTotalSessions) {
-			break;
-		}
-
-		const candidateMs = nowMs + i * ONE_DAY_MS;
-		const { year, month, day } = getTimePartsInZone(
-			candidateMs,
-			centerTimeZone,
-		);
-		const weekday = new Date(year, month - 1, day).getDay();
-
-		if (!targetWeekdays.includes(weekday)) {
-			continue;
-		}
-
-		// Check if this week already has max sessions
-		const weekNumber = getISOWeekNumber(year, month, day);
-		const weekKey = getWeekKey(year, weekNumber);
-		const sessionsInThisWeek = bookingsByWeek.get(weekKey) ?? 0;
-		if (sessionsInThisWeek >= maxSessionsPerWeek) {
-			continue;
-		}
-
-		const allEvents = await getEventsForDay({
-			centerId,
-			dayTimestampMs: candidateMs,
-			username,
-			password,
-		});
-		const dayEvents = allEvents.filter(isEventItem).filter((event) => {
-			const ms = parseDotNetDate(event.StartDateTime);
-			return ms !== null && isSameDayInZone(ms, candidateMs, centerTimeZone);
-		});
-
-		const targetEvent = dayEvents.find((event) => {
-			const ms = parseDotNetDate(event.StartDateTime);
-
-			return (
-				ms !== null &&
-				isTargetTimeInZone(ms, targetHour, targetMinute, centerTimeZone) &&
-				isWodEvent(event)
-			);
-		});
-
-		if (!targetEvent) {
-			continue;
-		}
-
-		const sessionStartMs = parseDotNetDate(targetEvent.StartDateTime);
-		if (sessionStartMs === null || futureBookedTimes.has(sessionStartMs)) {
-			continue;
-		}
-
-		const dateLabel = new Date(sessionStartMs).toLocaleDateString("en-GB", {
-			timeZone: centerTimeZone,
-			weekday: "long",
-			day: "numeric",
-			month: "long",
-		});
-		const dateLabelDa = new Date(sessionStartMs).toLocaleDateString("da-DK", {
-			timeZone: centerTimeZone,
-			weekday: "long",
-			day: "numeric",
-			month: "long",
-		});
-		const bookedCount =
-			targetEvent.Capacity !== undefined && targetEvent.FreeSpace !== undefined
-				? targetEvent.Capacity - targetEvent.FreeSpace
-				: null;
-		const bookedCountLabel =
-			bookedCount !== null && targetEvent.Capacity !== undefined
-				? ` (${bookedCount}/${targetEvent.Capacity} booked)`
-				: "";
-		const sessionLabel = `WOD ${String(targetHour).padStart(2, "0")}:${String(targetMinute).padStart(2, "0")} on ${dateLabel}${bookedCountLabel}`;
-
-		console.log(`Booking: ${sessionLabel}`);
-		await bookSession({
-			resourceId: targetEvent.RessourceId,
-			sessionStartMs,
-			username,
-			password,
-		});
-
-		const updatedBookings = await getBookings({ username, password });
-		const verified = updatedBookings.some(
-			(b) => parseDotNetDate(b.StartDateTime) === sessionStartMs,
-		);
-
-		if (!verified) {
-			throw new Error(`Booking verification failed for ${sessionLabel}`);
-		}
-
-		const allParticipants = await getSessionBookings({
-			resourceId: targetEvent.RessourceId,
-			sessionStartMs,
-			username,
-			password,
-		});
-
-		const updatedBookedCount = allParticipants.length;
-		const updatedBookedCountLabel =
-			targetEvent.Capacity !== undefined
-				? ` (${updatedBookedCount}/${targetEvent.Capacity})`
-				: "";
-
-		const bookedSession = updatedBookings.find(
-			(b) => parseDotNetDate(b.StartDateTime) === sessionStartMs,
-		);
-		const isWaitingList =
-			bookedSession?.Capacity &&
-			bookedSession.NumberOnList > bookedSession.Capacity;
-
-		const trackedPeopleHere = allParticipants
-			.filter((booking) => people[booking.userName])
-			.map((booking) => people[booking.userName])
-			.sort();
-
-		const consoleLabel = `WOD ${String(targetHour).padStart(2, "0")}:${String(targetMinute).padStart(2, "0")} on ${dateLabel}${updatedBookedCountLabel}${isWaitingList ? " (WAITING LIST)" : ""}`;
-		const consoleTracked =
-			trackedPeopleHere.length > 0
-				? ` - also attending: ${trackedPeopleHere.join(", ")}`
-				: "";
-
-		const pushoverLabel = `WOD ${String(targetHour).padStart(2, "0")}:${String(targetMinute).padStart(2, "0")} d. ${dateLabelDa}${updatedBookedCountLabel}${isWaitingList ? " (VENTELISTE)" : ""}`;
-		const pushoverTracked =
-			trackedPeopleHere.length > 0
-				? `\n  Deltager også: ${trackedPeopleHere.join(", ")}`
-				: "";
-
-		// Update tracking
-		futureBookedTimes.add(sessionStartMs);
-		allKnownTimestamps.push(sessionStartMs);
-		bookingsByWeek.set(weekKey, sessionsInThisWeek + 1);
-		console.log(`Booked and verified: ${consoleLabel}${consoleTracked}`);
-		newlyBooked.push(pushoverLabel + pushoverTracked);
+	if (newlyBooked.length === 0) {
+		console.log("No new sessions booked.");
 	}
-
-	await saveBookingState(stateFile, allKnownTimestamps);
 
 	return newlyBooked;
 }

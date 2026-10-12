@@ -1,305 +1,172 @@
 import type {
-  BookingRequestParams,
-  BookSessionParams,
-  GetBookingsParams,
-  GetEventsForDayParams,
-  GetSessionBookingsParams,
-  JsonpEventsPayload,
-  JsonpPayload,
-  NormalizedBooking,
-  PushoverParams,
-  RawBooking,
-  RawUserBooking,
+	Account,
+	ClassRegistration,
+	ClazzDetail,
+	ClazzMobile,
+	Credentials,
+	ParticipateDto,
+	PushoverParams,
 } from "./types.ts";
 
-const SESSION_DURATION_SECONDS = 3600;
+const BASE_URL =
+	process.env.API_BASE_URL ??
+	"https://crossfitroskilde.mobile.api.bookingboard.io";
 
-function ensureFiniteMs(value: number, name: string): void {
-  if (!Number.isFinite(value)) {
-    throw new Error(`${name} must be a specific timestamp in milliseconds`);
-  }
+type ApiFetchOptions = {
+	method?: string;
+	token?: string;
+	body?: unknown;
+	query?: Record<string, string>;
+};
+
+async function apiFetch<T>(
+	path: string,
+	{ method = "GET", token, body, query }: ApiFetchOptions = {},
+): Promise<T> {
+	const url = new URL(path, BASE_URL);
+	if (query) {
+		url.search = new URLSearchParams(query).toString();
+	}
+
+	const headers: Record<string, string> = { Accept: "application/json" };
+	if (body !== undefined) {
+		headers["Content-Type"] = "application/json";
+	}
+	if (token) {
+		headers.Authorization = `Bearer ${token}`;
+	}
+
+	const response = await fetch(url, {
+		method,
+		headers,
+		body: body !== undefined ? JSON.stringify(body) : undefined,
+	});
+
+	if (!response.ok) {
+		const text = await response.text();
+		throw new Error(
+			`${method} ${path} failed: ${response.status} ${response.statusText} - ${text}`,
+		);
+	}
+
+	const text = await response.text();
+	return (text ? JSON.parse(text) : null) as T;
 }
 
-function buildBookingUrl({
-  resourceId,
-  sessionStartMs,
-  durationSeconds = SESSION_DURATION_SECONDS,
-  username,
-  password,
-}: BookingRequestParams &
-  Pick<GetSessionBookingsParams, "username" | "password">): string {
-  ensureFiniteMs(sessionStartMs, "sessionStartMs");
-
-  const url = new URL(
-    "https://memberservicewebservice.sport-solution.com/bookingjson.asmx/GetListofPeopleBooked",
-  );
-
-  url.search = new URLSearchParams({
-    callback: "angular.callbacks._g",
-    Password: `'${password}'`,
-    UserName: `'${username}'`,
-    ressourceId: String(resourceId),
-    duration: String(durationSeconds),
-    timestamp: String(sessionStartMs),
-  }).toString();
-
-  return url.toString();
+/** Format a Date as the API's `start` query param: YYYY-MM-DDTHH:MM:SS. */
+export function toApiDateTime(
+	year: number,
+	month: number,
+	day: number,
+	hour = 0,
+	minute = 0,
+	second = 0,
+): string {
+	const pad = (n: number) => String(n).padStart(2, "0");
+	return `${year}-${pad(month)}-${pad(day)}T${pad(hour)}:${pad(minute)}:${pad(second)}`;
 }
 
-function parseJsonp(jsonpText: string): JsonpPayload {
-  const trimmed = jsonpText.trim();
-  const start = trimmed.indexOf("(");
-  const end = trimmed.lastIndexOf(")");
-
-  if (start === -1 || end === -1 || end <= start) {
-    throw new Error("Response is not valid JSONP");
-  }
-
-  const jsonText = trimmed.slice(start + 1, end);
-  return JSON.parse(jsonText) as JsonpPayload;
+export async function login({
+	email,
+	password,
+	chainId,
+}: Credentials): Promise<string> {
+	const data = await apiFetch<{ token: string }>("/api/authentication", {
+		method: "POST",
+		body: { email, password, chainId },
+	});
+	if (!data?.token) {
+		throw new Error("Login succeeded but no token was returned");
+	}
+	return data.token;
 }
 
-function parseJsonpEvents(jsonpText: string): JsonpEventsPayload {
-  const trimmed = jsonpText.trim();
-  const start = trimmed.indexOf("(");
-  const end = trimmed.lastIndexOf(")");
-
-  if (start === -1 || end === -1 || end <= start) {
-    throw new Error("Response is not valid JSONP");
-  }
-
-  const jsonText = trimmed.slice(start + 1, end);
-  return JSON.parse(jsonText) as JsonpEventsPayload;
+export async function getAccount(token: string): Promise<Account> {
+	return apiFetch<Account>("/api/accounts", { token });
 }
 
-function buildGetEventsUrl({
-  centerId,
-  dayTimestampMs,
-  username,
-  password,
-  callback = "angular.callbacks._g",
-}: GetEventsForDayParams): string {
-  ensureFiniteMs(dayTimestampMs, "dayTimestampMs");
-
-  const url = new URL(
-    "https://memberservicewebservice.sport-solution.com/bookingjson.asmx/jGetEvents",
-  );
-
-  url.search = new URLSearchParams({
-    callback,
-    username: `'${username}'`,
-    password: `'${password}'`,
-    centerId: String(centerId),
-    timestamp: String(dayTimestampMs),
-  }).toString();
-
-  return url.toString();
+/** All classes from `startIso` forward (the server returns a ~4-week window). */
+export async function getClasses(
+	token: string,
+	startIso: string,
+): Promise<ClazzMobile[]> {
+	return apiFetch<ClazzMobile[]>("/api/Classes", {
+		token,
+		query: { start: startIso },
+	});
 }
 
-function parseDotNetDate(value: unknown): number | null {
-  if (typeof value !== "string") {
-    return null;
-  }
-
-  const match = value.match(/^\/Date\((-?\d+)\)\/$/);
-  if (!match) {
-    return null;
-  }
-
-  const ms = Number(match[1]);
-  if (!Number.isFinite(ms)) {
-    return null;
-  }
-
-  return ms;
+/** The caller's own bookings (past + future), scoped by the token. */
+export async function getMyBookings(
+	token: string,
+	accountId: number,
+): Promise<ClassRegistration[]> {
+	return apiFetch<ClassRegistration[]>(`/api/accounts/${accountId}/bookings`, {
+		token,
+	});
 }
 
-function normalizeBooking(booking: RawBooking): NormalizedBooking {
-  const bookingTimeMs = parseDotNetDate(booking.BookingTime);
-
-  return {
-    numberOnBookingList: booking.NumberOnBookingList,
-    fullName: booking.FullName,
-    firstName: booking.FirstName,
-    lastName: booking.LastName,
-    userName: booking.UserName,
-    contactId: booking.ContactId,
-    personResourceId: booking.PersonRessourceId,
-    showedUp: booking.ShowedUp,
-    contactType: booking.ContactType,
-    bookingTimeMs,
-    bookingTimeIso: bookingTimeMs
-      ? new Date(bookingTimeMs).toISOString()
-      : null,
-    imageFileName: booking.ImageFileName,
-    raw: booking,
-  };
+/** A single class including its attendee (`participants`) list. */
+export async function getClassDetail(
+	token: string,
+	classId: number,
+): Promise<ClazzDetail> {
+	return apiFetch<ClazzDetail>(`/api/Classes/${classId}`, { token });
 }
 
-export async function getSessionBookings({
-  resourceId,
-  sessionStartMs,
-  username,
-  password,
-  durationSeconds = SESSION_DURATION_SECONDS,
-}: GetSessionBookingsParams): Promise<NormalizedBooking[]> {
-  const url = buildBookingUrl({
-    resourceId,
-    sessionStartMs,
-    username,
-    password,
-    durationSeconds,
-  });
-
-  const response = await fetch(url);
-
-  if (!response.ok) {
-    const body = await response.text();
-
-    throw new Error(
-      `Request failed: ${response.status} ${response.statusText} - ${body}`,
-    );
-  }
-
-  const body = await response.text();
-  const parsed = parseJsonp(body);
-  const bookings = Array.isArray(parsed?.d) ? parsed.d : [];
-
-  return bookings.map(normalizeBooking);
+export async function bookClass(
+	token: string,
+	{ classHourId, accountId }: { classHourId: number; accountId: number },
+): Promise<ClassRegistration> {
+	const body: ParticipateDto = {
+		id: 0,
+		classHourId,
+		accountId,
+		status: "SignedUp",
+	};
+	return apiFetch<ClassRegistration>("/api/Participations", {
+		method: "POST",
+		token,
+		body,
+	});
 }
 
-export async function getBookings({
-  username,
-  password,
-  callback = "angular.callbacks._q",
-}: GetBookingsParams): Promise<RawUserBooking[]> {
-  const url = new URL(
-    "https://memberservicewebservice.sport-solution.com/bookingjson.asmx/GetBookings",
-  );
-
-  url.search = new URLSearchParams({
-    callback,
-    Password: `'${password}'`,
-    UserName: `'${username}'`,
-  }).toString();
-
-  const response = await fetch(url);
-
-  if (!response.ok) {
-    const body = await response.text();
-
-    throw new Error(
-      `Request failed: ${response.status} ${response.statusText} - ${body}`,
-    );
-  }
-
-  const body = await response.text();
-  const parsed = parseJsonpEvents(body);
-  return (Array.isArray(parsed?.d) ? parsed.d : []) as RawUserBooking[];
-}
-
-export async function getEventsForDay({
-  centerId,
-  dayTimestampMs,
-  username,
-  password,
-  callback,
-}: GetEventsForDayParams): Promise<Record<string, unknown>[]> {
-  const url = buildGetEventsUrl({
-    centerId,
-    dayTimestampMs,
-    username,
-    password,
-    callback,
-  });
-
-  const response = await fetch(url);
-
-  if (!response.ok) {
-    const body = await response.text();
-
-    throw new Error(
-      `Request failed: ${response.status} ${response.statusText} - ${body}`,
-    );
-  }
-
-  const body = await response.text();
-  const parsed = parseJsonpEvents(body);
-  const events = Array.isArray(parsed?.d) ? parsed.d : [];
-
-  return events;
-}
-
-function buildBookSessionUrl({
-  resourceId,
-  sessionStartMs,
-  username,
-  password,
-  centerId = 653679,
-}: BookSessionParams & {
-  centerId?: number;
-}): string {
-  ensureFiniteMs(sessionStartMs, "sessionStartMs");
-
-  const url = new URL(
-    "https://memberservicewebservice.sport-solution.com/bookingjson.asmx/BookRessourceWithWarningsByContactBookingTypeAndBookingsCount",
-  );
-
-  url.search = new URLSearchParams({
-    callback: "angular.callbacks._u",
-    Password: `'${password}'`,
-    UserName: `'${username}'`,
-    bookingsCount: "1",
-    centerid: String(centerId),
-    contactBookingType: "3",
-    duration: String(SESSION_DURATION_SECONDS),
-    ressourceId: String(resourceId),
-    timestamp: String(sessionStartMs),
-  }).toString();
-
-  return url.toString();
-}
-
-export async function bookSession(params: BookSessionParams): Promise<void> {
-  const url = buildBookSessionUrl(params);
-
-  const response = await fetch(url);
-
-  if (!response.ok) {
-    const body = await response.text();
-
-    throw new Error(
-      `Request failed: ${response.status} ${response.statusText} - ${body}`,
-    );
-  }
-
-  const body = await response.text();
-  const parsed = parseJsonp(body);
-
-  // .NET API returns {"d": ""} or {"d": "success"} on successful booking
-  // Any response with ok status is considered success
-  if (typeof parsed?.d === "string") {
-    return;
-  }
-
-  throw new Error(`BookSession returned unexpected response: ${body}`);
+/** Cancel (opt out of) a booking. Not used by the automation; kept for parity. */
+export async function cancelBooking(
+	token: string,
+	{
+		participationId,
+		classHourId,
+		accountId,
+	}: { participationId: number; classHourId: number; accountId: number },
+): Promise<ClassRegistration> {
+	const body: ParticipateDto = {
+		id: participationId,
+		classHourId,
+		accountId,
+		status: "OptedOut",
+	};
+	return apiFetch<ClassRegistration>(
+		`/api/Participations/${participationId}`,
+		{ method: "PUT", token, body },
+	);
 }
 
 export async function sendPushoverNotification({
-  token,
-  user,
-  message,
-  title,
+	token,
+	user,
+	message,
+	title,
 }: PushoverParams): Promise<void> {
-  const response = await fetch("https://api.pushover.net/1/messages.json", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ token, user, message, title }),
-  });
+	const response = await fetch("https://api.pushover.net/1/messages.json", {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({ token, user, message, title }),
+	});
 
-  if (!response.ok) {
-    throw new Error(
-      `Pushover notification failed: ${response.status} ${response.statusText}`,
-    );
-  }
+	if (!response.ok) {
+		throw new Error(
+			`Pushover notification failed: ${response.status} ${response.statusText}`,
+		);
+	}
 }

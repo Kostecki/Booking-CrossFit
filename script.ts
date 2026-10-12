@@ -1,7 +1,5 @@
-import { getBookings, sendPushoverNotification } from "./bookingApi.ts";
+import { getAccount, login, sendPushoverNotification } from "./bookingApi.ts";
 import { runBookingAutomation } from "./lib/bookingAutomation.ts";
-import { buildInstructorsByBookingKey } from "./lib/calendarInstructors.ts";
-import { syncCalendarFileFromBookings } from "./lib/calendarSync.ts";
 
 function requireEnv(name: string): string {
 	const value = process.env[name];
@@ -12,96 +10,95 @@ function requireEnv(name: string): string {
 	return value;
 }
 
-const username = requireEnv("API_USERNAME");
+const email = requireEnv("API_EMAIL");
 const password = requireEnv("API_PASSWORD");
+const chainId = Number(requireEnv("CHAIN_ID"));
 const PUSHOVER_TOKEN = requireEnv("PUSHOVER_TOKEN");
 const PUSHOVER_USER = requireEnv("PUSHOVER_USER");
 
-const centerId = Number(requireEnv("CENTER_ID"));
-const centerTimeZone = "Europe/Copenhagen";
+if (!Number.isFinite(chainId)) {
+	console.error("Environment variable CHAIN_ID must be a number");
+	process.exit(1);
+}
+
+function intEnv(name: string, fallback: number): number {
+	const raw = process.env[name];
+	if (raw === undefined || raw.trim() === "") return fallback;
+	const value = Number(raw);
+	if (!Number.isInteger(value) || value < 0) {
+		console.error(`Environment variable ${name} must be a non-negative integer`);
+		process.exit(1);
+	}
+	return value;
+}
+
+function weekdaysEnv(name: string, fallback: number[]): number[] {
+	const raw = process.env[name];
+	if (raw === undefined || raw.trim() === "") return fallback;
+	const days = raw.split(",").map((part) => Number(part.trim()));
+	if (days.some((d) => !Number.isInteger(d) || d < 0 || d > 6)) {
+		console.error(
+			`Environment variable ${name} must be comma-separated weekday numbers 0-6 (0=Sunday)`,
+		);
+		process.exit(1);
+	}
+	return days;
+}
+
+function timeEnv(
+	name: string,
+	fallback: { hour: number; minute: number },
+): { hour: number; minute: number } {
+	const raw = process.env[name];
+	if (raw === undefined || raw.trim() === "") return fallback;
+	const match = raw.trim().match(/^(\d{1,2}):(\d{2})$/);
+	const hour = match ? Number(match[1]) : Number.NaN;
+	const minute = match ? Number(match[2]) : Number.NaN;
+	if (!match || hour > 23 || minute > 59) {
+		console.error(`Environment variable ${name} must be a 24-hour time (HH:MM)`);
+		process.exit(1);
+	}
+	return { hour, minute };
+}
+
+const centerTimeZone = process.env.TIME_ZONE || "Europe/Copenhagen";
+const classTitle = process.env.CLASS_TITLE || "WOD";
 const people: Record<string, string> = JSON.parse(
 	process.env.TRACKED_PEOPLE ?? "{}",
 );
-
-const TARGET_WEEKDAYS = [2, 4]; // 2=Tuesday, 4=Thursday (0=Sunday … 6=Saturday)
-const MAX_SESSIONS_PER_WEEK = 2;
-const MAX_TOTAL_SESSIONS = 4;
-const MAX_SCAN_DAYS = 60;
-const DEFAULT_CALENDAR_LOOKBACK_DAYS = 14;
-const TARGET_HOUR = 17;
-const TARGET_MINUTE = 30;
-const DEFAULT_CALENDAR_REMINDER_MINUTES = 60;
-
-const calendarIcsFile = process.env.CALENDAR_ICS_FILE ?? "./bookings.ics";
-const bookingStateFile =
-	process.env.BOOKING_STATE_FILE ?? "./booking-state.json";
-const calendarLookbackDays = Number(
-	process.env.CALENDAR_LOOKBACK_DAYS ?? DEFAULT_CALENDAR_LOOKBACK_DAYS,
-);
-const calendarReminderMinutes = Number(
-	process.env.CALENDAR_REMINDER_MINUTES ?? DEFAULT_CALENDAR_REMINDER_MINUTES,
+const dryRun = ["1", "true", "yes"].includes(
+	(process.env.DRY_RUN ?? "").toLowerCase(),
 );
 
-if (!Number.isFinite(calendarLookbackDays)) {
-	console.error("Environment variable CALENDAR_LOOKBACK_DAYS must be a number");
-	process.exit(1);
-}
+// Booking policy — all overridable via .env (defaults keep the original behaviour).
+const targetWeekdays = weekdaysEnv("TARGET_WEEKDAYS", [2, 4]); // 2=Tue, 4=Thu (0=Sun … 6=Sat)
+const { hour: targetHour, minute: targetMinute } = timeEnv("TARGET_TIME", {
+	hour: 17,
+	minute: 30,
+});
+const maxSessionsPerWeek = intEnv("MAX_SESSIONS_PER_WEEK", 2);
+const maxTotalSessions = intEnv("MAX_TOTAL_SESSIONS", 5); // gym's concurrent-booking cap
 
-if (!Number.isFinite(calendarReminderMinutes) || calendarReminderMinutes < 0) {
-	console.error(
-		"Environment variable CALENDAR_REMINDER_MINUTES must be a non-negative number",
-	);
-	process.exit(1);
-}
+async function main(): Promise<void> {
+	const token = await login({ email, password, chainId });
+	const account = await getAccount(token);
+	console.log(`Logged in as ${account.fullName} (accountId ${account.id})\n`);
 
-async function syncCalendarFileFromSourceOfTruth(): Promise<void> {
-	const sourceBookings = await getBookings({ username, password });
-	const instructorsByBookingKey = await buildInstructorsByBookingKey({
-		bookings: sourceBookings,
-		centerId,
-		username,
-		password,
-		centerTimeZone,
-	});
-
-	const result = await syncCalendarFileFromBookings(sourceBookings, {
-		calendarIcsFile,
-		calendarLookbackDays,
-		calendarOwnerKey: username,
-		instructorsByBookingKey,
-		reminderMinutesBeforeStart: calendarReminderMinutes,
-	});
-
-	if (result.updated) {
-		console.log("");
-		console.log(
-			`Calendar updated: ${calendarIcsFile} (${result.eventCount} events)`,
-		);
-		return;
-	}
-
-	console.log(
-		`Calendar unchanged: ${calendarIcsFile} (${result.eventCount} events)`,
-	);
-}
-
-async function main() {
 	const newlyBooked = await runBookingAutomation({
-		username,
-		password,
-		centerId,
+		token,
+		accountId: account.id,
 		centerTimeZone,
 		people,
-		targetWeekdays: TARGET_WEEKDAYS,
-		maxSessionsPerWeek: MAX_SESSIONS_PER_WEEK,
-		maxTotalSessions: MAX_TOTAL_SESSIONS,
-		maxScanDays: MAX_SCAN_DAYS,
-		targetHour: TARGET_HOUR,
-		targetMinute: TARGET_MINUTE,
-		stateFile: bookingStateFile,
+		classTitle,
+		targetWeekdays,
+		maxSessionsPerWeek,
+		maxTotalSessions,
+		targetHour,
+		targetMinute,
+		dryRun,
 	});
 
-	if (newlyBooked.length > 0) {
+	if (newlyBooked.length > 0 && !dryRun) {
 		const trainingWord = newlyBooked.length === 1 ? "træning" : "træninger";
 
 		await sendPushoverNotification({
@@ -111,8 +108,6 @@ async function main() {
 			message: `Booket ${newlyBooked.length} ${trainingWord}:\n${newlyBooked.join("\n")}`,
 		});
 	}
-
-	await syncCalendarFileFromSourceOfTruth();
 }
 
 async function run(): Promise<void> {
@@ -122,21 +117,19 @@ async function run(): Promise<void> {
 		console.error(error);
 
 		try {
-			await syncCalendarFileFromSourceOfTruth();
-		} catch (syncError) {
-			console.error("Failed to update calendar file after error:", syncError);
-		}
-
-		try {
-			await sendPushoverNotification({
-				token: PUSHOVER_TOKEN,
-				user: PUSHOVER_USER,
-				title: "CrossFit booking fejl",
-				message: `Fejl: ${String(error)}`,
-			});
+			if (!dryRun) {
+				await sendPushoverNotification({
+					token: PUSHOVER_TOKEN,
+					user: PUSHOVER_USER,
+					title: "CrossFit booking fejl",
+					message: `Fejl: ${String(error)}`,
+				});
+			}
 		} catch {
 			// Ignore secondary notification failures.
 		}
+
+		process.exitCode = 1;
 	}
 }
 
