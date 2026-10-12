@@ -1,19 +1,15 @@
 # booking-crossfit
 
-Auto-books my recurring **CrossFit Roskilde** classes through the gym's BookingBoard
-API, and pushes a notification when something is booked.
+Auto-books my recurring **CrossFit Roskilde** classes through the gym's BookingBoard API, and pushes a notification when something is booked.
 
-It's a one-shot script meant to run on a schedule (e.g. cron): each run logs in, looks at
-what I'm already booked into, and books the next sessions needed to hit the target.
+It's a one-shot script meant to run on a schedule (e.g. cron): each run logs in, looks at what I'm already booked into, and books the next sessions needed to hit the target.
 
 ## What it does
 
 - Books the **WOD at 17:30 on Tuesdays and Thursdays**.
 - Keeps **up to 5 upcoming bookings** (the gym's concurrent-booking cap), max **2 per week**.
-- Counts my existing bookings (incl. earlier this week) from the API, so it never
-  double-books or exceeds the caps.
-- Sends a **Pushover** summary of anything newly booked, and notes which tracked friends
-  are also attending.
+- Counts my existing bookings (incl. earlier this week) from the API, so it never double-books or exceeds the caps.
+- Sends a **Pushover** summary of anything newly booked, and notes which tracked friends are also attending.
 
 ## Requirements
 
@@ -58,6 +54,4 @@ node --env-file=.env scripts/find-participants.ts <classId>
 
 ## Notes
 
-The gym runs on BookingBoard; the endpoints this uses were reverse-engineered from the
-app (auth, classes, bookings, participations). The calendar/reminders are handled by the
-BookingBoard app itself, so this script only books and notifies.
+The gym runs on BookingBoard; the endpoints this uses were reverse-engineered from the app (auth, classes, bookings, participations). The calendar/reminders are handled by the BookingBoard app itself, so this script only books and notifies.
