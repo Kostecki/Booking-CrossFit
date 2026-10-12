@@ -16,6 +16,7 @@ export type BookingAutomationConfig = {
 	centerTimeZone: string;
 	// participantId (as string) -> display name, for "also attending"
 	people: Record<string, string>;
+	classTitle: string;
 	targetWeekdays: number[];
 	maxSessionsPerWeek: number;
 	maxTotalSessions: number;
@@ -81,10 +82,11 @@ function getWeekKey(timestampMs: number, timeZone: string): string {
 	return `${year}-W${String(week).padStart(2, "0")}`;
 }
 
-function isWodClass(cls: ClazzMobile): boolean {
+function isTargetClass(cls: ClazzMobile, targetTitle: string): boolean {
+	const target = targetTitle.trim().toUpperCase();
 	const title = cls.title?.trim().toUpperCase();
 	const type = cls.type?.trim().toUpperCase();
-	return title === "WOD" || type === "WOD";
+	return title === target || type === target;
 }
 
 function dateLabel(
@@ -112,6 +114,7 @@ export async function runBookingAutomation({
 	accountId,
 	centerTimeZone,
 	people,
+	classTitle,
 	targetWeekdays,
 	maxSessionsPerWeek,
 	maxTotalSessions,
@@ -173,7 +176,7 @@ export async function runBookingAutomation({
 			({ cls, ms }) =>
 				Number.isFinite(ms) &&
 				ms > nowMs &&
-				isWodClass(cls) &&
+				isTargetClass(cls, classTitle) &&
 				isTargetTimeInZone(ms, targetHour, targetMinute, centerTimeZone),
 		)
 		.filter(({ ms }) => {
@@ -182,7 +185,7 @@ export async function runBookingAutomation({
 		})
 		.sort((a, b) => a.ms - b.ms);
 
-	const timeLabel = `${String(targetHour).padStart(2, "0")}:${String(targetMinute).padStart(2, "0")}`;
+	const timeLabel = `${classTitle} ${String(targetHour).padStart(2, "0")}:${String(targetMinute).padStart(2, "0")}`;
 	const newlyBooked: string[] = [];
 
 	for (const { cls, ms } of candidates) {
@@ -202,10 +205,10 @@ export async function runBookingAutomation({
 			);
 			const full = cls.hasSeatsLeft === false;
 			console.log(
-				`[dry-run] Would book: WOD ${timeLabel} on ${labelEn}${occ}${full ? " (WAITING LIST)" : ""}`,
+				`[dry-run] Would book: ${timeLabel} on ${labelEn}${occ}${full ? " (WAITING LIST)" : ""}`,
 			);
 			newlyBooked.push(
-				`WOD ${timeLabel} d. ${labelDa}${occ}${full ? " (VENTELISTE)" : ""}`,
+				`${timeLabel} d. ${labelDa}${occ}${full ? " (VENTELISTE)" : ""}`,
 			);
 			upcomingCount++;
 			upcomingClassIds.add(cls.id);
@@ -213,7 +216,7 @@ export async function runBookingAutomation({
 			continue;
 		}
 
-		console.log(`Booking: WOD ${timeLabel} on ${labelEn}`);
+		console.log(`Booking: ${timeLabel} on ${labelEn}`);
 		const booking = await bookClass(token, {
 			classHourId: cls.id,
 			accountId,
@@ -226,7 +229,7 @@ export async function runBookingAutomation({
 		);
 		if (!verified) {
 			throw new Error(
-				`Booking verification failed for WOD ${timeLabel} on ${labelEn}`,
+				`Booking verification failed for ${timeLabel} on ${labelEn}`,
 			);
 		}
 
@@ -259,10 +262,10 @@ export async function runBookingAutomation({
 				: "";
 
 		console.log(
-			`Booked and verified: WOD ${timeLabel} on ${labelEn}${occ}${onWaitingList ? " (WAITING LIST)" : ""}${consoleTracked}`,
+			`Booked and verified: ${timeLabel} on ${labelEn}${occ}${onWaitingList ? " (WAITING LIST)" : ""}${consoleTracked}`,
 		);
 		newlyBooked.push(
-			`WOD ${timeLabel} d. ${labelDa}${occ}${onWaitingList ? " (VENTELISTE)" : ""}${pushoverTracked}`,
+			`${timeLabel} d. ${labelDa}${occ}${onWaitingList ? " (VENTELISTE)" : ""}${pushoverTracked}`,
 		);
 
 		upcomingCount++;

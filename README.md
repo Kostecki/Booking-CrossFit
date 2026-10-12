@@ -39,10 +39,16 @@ DRY_RUN=1 pnpm start            # log what it would book, without booking
 | `CHAIN_ID` | Gym chain id (291 for CrossFit Roskilde) |
 | `TRACKED_PEOPLE` | `{"participantId":"Name"}` map for "also attending" |
 | `DRY_RUN` | `1` to compute + log without booking |
+| `CLASS_TITLE` | Class to book (default `WOD`) |
+| `TARGET_WEEKDAYS` | Days to book, `0=Sun…6=Sat` (default `2,4`) |
+| `TARGET_TIME` | Class start time `HH:MM` (default `17:30`) |
+| `MAX_SESSIONS_PER_WEEK` | Per-week cap (default `2`) |
+| `MAX_TOTAL_SESSIONS` | Upcoming bookings to keep (default `5`) |
+| `TIME_ZONE` | IANA time zone (default `Europe/Copenhagen`) |
 | `PUSHOVER_TOKEN` / `PUSHOVER_USER` | Notifications |
 
-The booking policy (weekdays, target time, caps) lives as constants at the top of
-`script.ts`.
+The booking policy (class, weekdays, time, caps, time zone) is configured entirely through
+the optional `.env` vars above — no code changes needed. Omit any to keep its default.
 
 ### Finding participant ids
 

@@ -16,7 +16,53 @@ const chainId = Number(requireEnv("CHAIN_ID"));
 const PUSHOVER_TOKEN = requireEnv("PUSHOVER_TOKEN");
 const PUSHOVER_USER = requireEnv("PUSHOVER_USER");
 
-const centerTimeZone = "Europe/Copenhagen";
+if (!Number.isFinite(chainId)) {
+	console.error("Environment variable CHAIN_ID must be a number");
+	process.exit(1);
+}
+
+function intEnv(name: string, fallback: number): number {
+	const raw = process.env[name];
+	if (raw === undefined || raw.trim() === "") return fallback;
+	const value = Number(raw);
+	if (!Number.isInteger(value) || value < 0) {
+		console.error(`Environment variable ${name} must be a non-negative integer`);
+		process.exit(1);
+	}
+	return value;
+}
+
+function weekdaysEnv(name: string, fallback: number[]): number[] {
+	const raw = process.env[name];
+	if (raw === undefined || raw.trim() === "") return fallback;
+	const days = raw.split(",").map((part) => Number(part.trim()));
+	if (days.some((d) => !Number.isInteger(d) || d < 0 || d > 6)) {
+		console.error(
+			`Environment variable ${name} must be comma-separated weekday numbers 0-6 (0=Sunday)`,
+		);
+		process.exit(1);
+	}
+	return days;
+}
+
+function timeEnv(
+	name: string,
+	fallback: { hour: number; minute: number },
+): { hour: number; minute: number } {
+	const raw = process.env[name];
+	if (raw === undefined || raw.trim() === "") return fallback;
+	const match = raw.trim().match(/^(\d{1,2}):(\d{2})$/);
+	const hour = match ? Number(match[1]) : Number.NaN;
+	const minute = match ? Number(match[2]) : Number.NaN;
+	if (!match || hour > 23 || minute > 59) {
+		console.error(`Environment variable ${name} must be a 24-hour time (HH:MM)`);
+		process.exit(1);
+	}
+	return { hour, minute };
+}
+
+const centerTimeZone = process.env.TIME_ZONE || "Europe/Copenhagen";
+const classTitle = process.env.CLASS_TITLE || "WOD";
 const people: Record<string, string> = JSON.parse(
 	process.env.TRACKED_PEOPLE ?? "{}",
 );
@@ -24,16 +70,14 @@ const dryRun = ["1", "true", "yes"].includes(
 	(process.env.DRY_RUN ?? "").toLowerCase(),
 );
 
-const TARGET_WEEKDAYS = [2, 4]; // 2=Tuesday, 4=Thursday (0=Sunday … 6=Saturday)
-const MAX_SESSIONS_PER_WEEK = 2;
-const MAX_TOTAL_SESSIONS = 5; // keep 5 upcoming booked (gym's concurrent-booking cap)
-const TARGET_HOUR = 17;
-const TARGET_MINUTE = 30;
-
-if (!Number.isFinite(chainId)) {
-	console.error("Environment variable CHAIN_ID must be a number");
-	process.exit(1);
-}
+// Booking policy — all overridable via .env (defaults keep the original behaviour).
+const targetWeekdays = weekdaysEnv("TARGET_WEEKDAYS", [2, 4]); // 2=Tue, 4=Thu (0=Sun … 6=Sat)
+const { hour: targetHour, minute: targetMinute } = timeEnv("TARGET_TIME", {
+	hour: 17,
+	minute: 30,
+});
+const maxSessionsPerWeek = intEnv("MAX_SESSIONS_PER_WEEK", 2);
+const maxTotalSessions = intEnv("MAX_TOTAL_SESSIONS", 5); // gym's concurrent-booking cap
 
 async function main(): Promise<void> {
 	const token = await login({ email, password, chainId });
@@ -45,11 +89,12 @@ async function main(): Promise<void> {
 		accountId: account.id,
 		centerTimeZone,
 		people,
-		targetWeekdays: TARGET_WEEKDAYS,
-		maxSessionsPerWeek: MAX_SESSIONS_PER_WEEK,
-		maxTotalSessions: MAX_TOTAL_SESSIONS,
-		targetHour: TARGET_HOUR,
-		targetMinute: TARGET_MINUTE,
+		classTitle,
+		targetWeekdays,
+		maxSessionsPerWeek,
+		maxTotalSessions,
+		targetHour,
+		targetMinute,
 		dryRun,
 	});
 
