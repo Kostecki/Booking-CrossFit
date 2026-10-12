@@ -8,7 +8,9 @@ import type {
 	PushoverParams,
 } from "./types.ts";
 
-const BASE_URL = "https://crossfitroskilde.mobile.api.bookingboard.io";
+const BASE_URL =
+	process.env.API_BASE_URL ??
+	"https://crossfitroskilde.mobile.api.bookingboard.io";
 
 type ApiFetchOptions = {
 	method?: string;
