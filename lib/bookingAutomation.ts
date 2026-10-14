@@ -3,6 +3,7 @@ import {
 	getClassDetail,
 	getClasses,
 	getMyBookings,
+	reactivateBooking,
 	toApiDateTime,
 } from "../bookingApi.ts";
 import type { ClazzMobile } from "../types.ts";
@@ -23,6 +24,7 @@ export type BookingAutomationConfig = {
 	targetHour: number;
 	targetMinute: number;
 	dryRun: boolean;
+	pendingRebookClassIds: number[];
 };
 
 function getTimePartsInZone(
@@ -121,6 +123,7 @@ export async function runBookingAutomation({
 	targetHour,
 	targetMinute,
 	dryRun,
+	pendingRebookClassIds,
 }: BookingAutomationConfig): Promise<string[]> {
 	const nowMs = Date.now();
 	const runDate = new Date(nowMs).toLocaleDateString("en-GB", {
@@ -138,7 +141,11 @@ export async function runBookingAutomation({
 	const upcoming = held
 		.filter((b) => b.ms > nowMs)
 		.sort((a, b) => a.ms - b.ms);
-	const upcomingClassIds = new Set(upcoming.map((b) => b.classId));
+	// A cancelled registration still exists on the server. Creating another one
+	// for the same class is rejected, and a cancellation should be respected.
+	const registeredClassIds = new Set(bookings.map((b) => b.classId));
+	const heldClassIds = new Set(held.map((b) => b.classId));
+	const pendingRebooks = new Set(pendingRebookClassIds);
 
 	// Weekly counts use all held bookings (so earlier-this-week sessions still count).
 	const bookingsByWeek = new Map<string, number>();
@@ -183,14 +190,19 @@ export async function runBookingAutomation({
 			const { year, month, day } = getTimePartsInZone(ms, centerTimeZone);
 			return targetWeekdays.includes(weekdayForDate(year, month, day));
 		})
-		.sort((a, b) => a.ms - b.ms);
+		.sort((a, b) =>
+			Number(pendingRebooks.has(b.cls.id)) - Number(pendingRebooks.has(a.cls.id)) ||
+			a.ms - b.ms,
+		);
 
 	const timeLabel = `${classTitle} ${String(targetHour).padStart(2, "0")}:${String(targetMinute).padStart(2, "0")}`;
 	const newlyBooked: string[] = [];
 
 	for (const { cls, ms } of candidates) {
 		if (upcomingCount >= maxTotalSessions) break;
-		if (upcomingClassIds.has(cls.id)) continue; // already booked
+		if (heldClassIds.has(cls.id)) continue;
+		const rebookRequested = pendingRebooks.has(cls.id);
+		if (registeredClassIds.has(cls.id) && !rebookRequested) continue;
 
 		const weekKey = getWeekKey(ms, centerTimeZone);
 		if ((bookingsByWeek.get(weekKey) ?? 0) >= maxSessionsPerWeek) continue;
@@ -205,26 +217,52 @@ export async function runBookingAutomation({
 			);
 			const full = cls.hasSeatsLeft === false;
 			console.log(
-				`[dry-run] Would book: ${timeLabel} on ${labelEn}${occ}${full ? " (WAITING LIST)" : ""}`,
+				`[dry-run] Would ${rebookRequested ? "rebook" : "book"}: ${timeLabel} on ${labelEn}${occ}${full ? " (WAITING LIST)" : ""}`,
 			);
 			newlyBooked.push(
 				`${timeLabel} d. ${labelDa}${occ}${full ? " (VENTELISTE)" : ""}`,
 			);
 			upcomingCount++;
-			upcomingClassIds.add(cls.id);
+			registeredClassIds.add(cls.id);
+			heldClassIds.add(cls.id);
 			bookingsByWeek.set(weekKey, (bookingsByWeek.get(weekKey) ?? 0) + 1);
 			continue;
 		}
 
-		console.log(`Booking: ${timeLabel} on ${labelEn}`);
-		const booking = await bookClass(token, {
-			classHourId: cls.id,
-			accountId,
-		});
+		console.log(`${rebookRequested ? "Rebooking" : "Booking"}: ${timeLabel} on ${labelEn}`);
+		const cancelled = rebookRequested
+			? bookings.find(
+					(b) => b.classId === cls.id && CANCELLED_STATUSES.has(b.status),
+				)
+			: undefined;
+		if (cancelled) {
+			try {
+				await reactivateBooking(token, {
+					participationId: cancelled.id,
+					classHourId: cls.id,
+					accountId,
+				});
+			} catch (error) {
+				// The API can remove an opted-out participation when a PUT fails.
+				// Re-read before deciding whether a new POST is needed.
+				const current = await getMyBookings(token, accountId);
+				if (!current.some((b) => b.classId === cls.id)) {
+					await bookClass(token, { classHourId: cls.id, accountId });
+				} else if (
+					!current.some(
+						(b) => b.classId === cls.id && !CANCELLED_STATUSES.has(b.status),
+					)
+				) {
+					throw error;
+				}
+			}
+		} else {
+			await bookClass(token, { classHourId: cls.id, accountId });
+		}
 
 		// Verify by re-reading the account's bookings.
 		const updated = await getMyBookings(token, accountId);
-		const verified = updated.some(
+		const verified = updated.find(
 			(b) => b.classId === cls.id && !CANCELLED_STATUSES.has(b.status),
 		);
 		if (!verified) {
@@ -233,7 +271,7 @@ export async function runBookingAutomation({
 			);
 		}
 
-		const onWaitingList = booking.status !== "SignedUp";
+		const onWaitingList = verified.status !== "SignedUp";
 
 		// Occupancy + "also attending" from the class detail (post-booking).
 		let trackedHere: string[] = [];
@@ -269,7 +307,8 @@ export async function runBookingAutomation({
 		);
 
 		upcomingCount++;
-		upcomingClassIds.add(cls.id);
+		registeredClassIds.add(cls.id);
+		heldClassIds.add(cls.id);
 		bookingsByWeek.set(weekKey, (bookingsByWeek.get(weekKey) ?? 0) + 1);
 	}
 

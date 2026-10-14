@@ -131,6 +131,28 @@ export async function bookClass(
 	});
 }
 
+/** Rejoin a class with an existing cancelled participation. */
+export async function reactivateBooking(
+	token: string,
+	{
+		participationId,
+		classHourId,
+		accountId,
+	}: { participationId: number; classHourId: number; accountId: number },
+): Promise<ClassRegistration> {
+	const body: ParticipateDto = {
+		id: participationId,
+		classHourId,
+		accountId,
+		status: "SignedUp",
+	};
+	return apiFetch<ClassRegistration>(`/api/Participations/${participationId}`, {
+		method: "PUT",
+		token,
+		body,
+	});
+}
+
 /** Cancel (opt out of) a booking. Not used by the automation; kept for parity. */
 export async function cancelBooking(
 	token: string,

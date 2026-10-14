@@ -9,6 +9,7 @@ It's a one-shot script meant to run on a schedule (e.g. cron): each run logs in,
 - Books the **WOD at 17:30 on Tuesdays and Thursdays**.
 - Keeps **up to 5 upcoming bookings** (the gym's concurrent-booking cap), max **2 per week**.
 - Counts my existing bookings (incl. earlier this week) from the API, so it never double-books or exceeds the caps.
+- Skips classes I've cancelled, so the next scheduled run does not book them again, unless they have a one-time rebooking request.
 - Sends a **Pushover** summary of anything newly booked, and notes which tracked friends are also attending.
 
 ## Requirements
@@ -49,6 +50,16 @@ DRY_RUN=1 pnpm start            # log what it would book, without booking
 
 The booking policy (class, weekdays, time, caps, time zone) is configured entirely through
 the optional `.env` vars above — no code changes needed. Omit any to keep its default.
+
+### One-time rebooking
+
+If a class was cancelled only to free a booking slot, add its class ID to
+`booking-requests.json` under `rebookOnceClassIds`. The script gives these classes
+priority when a slot opens and reactivates an existing cancelled participation.
+After verifying the booking, it records the completed request in the local
+`rebook-state.json` file. Keep that state file on the scheduled machine between
+runs, so a later cancellation stays cancelled. The request file is deployed with
+the code; the state file is ignored by Git.
 
 ### Finding participant ids
 

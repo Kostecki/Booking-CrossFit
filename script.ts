@@ -1,5 +1,33 @@
-import { getAccount, login, sendPushoverNotification } from "./bookingApi.ts";
+import { readFile, writeFile } from "node:fs/promises";
+import { getAccount, getMyBookings, login, sendPushoverNotification } from "./bookingApi.ts";
 import { runBookingAutomation } from "./lib/bookingAutomation.ts";
+
+const bookingStateFile = new URL("./rebook-state.json", import.meta.url);
+const bookingRequestsFile = new URL("./booking-requests.json", import.meta.url);
+
+async function readClassIds(file: URL, key: string): Promise<number[]> {
+	let content: string;
+	try {
+		content = await readFile(file, "utf8");
+	} catch (error) {
+		if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
+		throw error;
+	}
+	const state: unknown = JSON.parse(content);
+	const ids =
+		typeof state === "object" && state !== null
+			? (state as Record<string, unknown>)[key]
+			: undefined;
+	if (
+		!Array.isArray(ids) ||
+		!ids.every(
+			(id: unknown) => Number.isSafeInteger(id) && Number(id) > 0,
+		)
+	) {
+		throw new Error(`${file.pathname} must contain ${key} as positive class IDs`);
+	}
+	return ids as number[];
+}
 
 function requireEnv(name: string): string {
 	const value = process.env[name];
@@ -82,6 +110,18 @@ const maxTotalSessions = intEnv("MAX_TOTAL_SESSIONS", 5); // gym's concurrent-bo
 async function main(): Promise<void> {
 	const token = await login({ email, password, chainId });
 	const account = await getAccount(token);
+	const requestedRebookClassIds = await readClassIds(
+		bookingRequestsFile,
+		"rebookOnceClassIds",
+	);
+	const completedRebookClassIds = await readClassIds(
+		bookingStateFile,
+		"completedRebookClassIds",
+	);
+	const completedRebooks = new Set(completedRebookClassIds);
+	const pendingRebookClassIds = requestedRebookClassIds.filter(
+		(id) => !completedRebooks.has(id),
+	);
 	console.log(`Logged in as ${account.fullName} (accountId ${account.id})\n`);
 
 	const newlyBooked = await runBookingAutomation({
@@ -96,7 +136,27 @@ async function main(): Promise<void> {
 		targetHour,
 		targetMinute,
 		dryRun,
+		pendingRebookClassIds,
 	});
+
+	if (!dryRun && pendingRebookClassIds.length > 0) {
+		const current = await getMyBookings(token, account.id);
+		const newlyCompleted = pendingRebookClassIds.filter(
+			(classId) =>
+				current.some(
+					(b) =>
+						b.classId === classId &&
+						b.status !== "OptedOut" &&
+						b.status !== "OptedOutTooLate",
+				),
+		);
+		if (newlyCompleted.length > 0) {
+			await writeFile(
+				bookingStateFile,
+				`${JSON.stringify({ completedRebookClassIds: [...completedRebooks, ...newlyCompleted] }, null, 2)}\n`,
+			);
+		}
+	}
 
 	if (newlyBooked.length > 0 && !dryRun) {
 		const trainingWord = newlyBooked.length === 1 ? "træning" : "træninger";

@@ -4,3 +4,4 @@ responses/
 *.log
 *.ics
 booking-state.json
+rebook-state.json
