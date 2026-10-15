@@ -63,7 +63,7 @@ test("a one-time request rebooks a cancelled class before later classes", async 
 			pendingRebookClassIds: [1458123],
 		});
 		assert.equal(booked.length, 1);
-		assert.match(booked[0]!, /3\. november/);
+		assert.match(booked[0]!, /3\. November/);
 		assert.ok(requests.includes("PUT /api/Participations/7146311"));
 		assert.ok(!requests.includes("POST /api/Participations"));
 	} finally {
