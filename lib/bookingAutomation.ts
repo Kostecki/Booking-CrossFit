@@ -73,9 +73,7 @@ function getISOWeekNumber(year: number, month: number, day: number): number {
 	date.setHours(0, 0, 0, 0);
 	date.setDate(date.getDate() + 4 - (date.getDay() || 7));
 	const yearStart = new Date(date.getFullYear(), 0, 1);
-	return Math.ceil(
-		((date.getTime() - yearStart.getTime()) / 86400000 + 1) / 7,
-	);
+	return Math.ceil(((date.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
 }
 
 function getWeekKey(timestampMs: number, timeZone: string): string {
@@ -91,11 +89,54 @@ function isTargetClass(cls: ClazzMobile, targetTitle: string): boolean {
 	return title === target || type === target;
 }
 
+const DA_WEEKDAYS = [
+	"Søndag",
+	"Mandag",
+	"Tirsdag",
+	"Onsdag",
+	"Torsdag",
+	"Fredag",
+	"Lørdag",
+];
+const DA_MONTHS = [
+	"Januar",
+	"Februar",
+	"Marts",
+	"April",
+	"Maj",
+	"Juni",
+	"Juli",
+	"August",
+	"September",
+	"Oktober",
+	"November",
+	"December",
+];
+
+// Built manually so it doesn't depend on the runtime shipping Danish ICU data
+// (small-icu Node builds silently fall back to English for "da-DK").
+function danishDateLabel(timestampMs: number, timeZone: string): string {
+	const parts = new Intl.DateTimeFormat("en-GB", {
+		timeZone,
+		year: "numeric",
+		month: "numeric",
+		day: "numeric",
+	}).formatToParts(new Date(timestampMs));
+	const get = (type: string) =>
+		Number(parts.find((p) => p.type === type)?.value);
+	const year = get("year");
+	const month = get("month");
+	const day = get("day");
+	const weekday = new Date(Date.UTC(year, month - 1, day)).getUTCDay();
+	return `${DA_WEEKDAYS[weekday]} ${day}. ${DA_MONTHS[month - 1]}`;
+}
+
 function dateLabel(
 	timestampMs: number,
 	timeZone: string,
 	locale: string,
 ): string {
+	if (locale === "da-DK") return danishDateLabel(timestampMs, timeZone);
 	return new Date(timestampMs).toLocaleDateString(locale, {
 		timeZone,
 		weekday: "long",
@@ -138,9 +179,7 @@ export async function runBookingAutomation({
 		.map((b) => ({ ...b, ms: Date.parse(b.begins) }))
 		.filter((b) => Number.isFinite(b.ms));
 
-	const upcoming = held
-		.filter((b) => b.ms > nowMs)
-		.sort((a, b) => a.ms - b.ms);
+	const upcoming = held.filter((b) => b.ms > nowMs).sort((a, b) => a.ms - b.ms);
 	// A cancelled registration still exists on the server. Creating another one
 	// for the same class is rejected, and a cancellation should be respected.
 	const registeredClassIds = new Set(bookings.map((b) => b.classId));
@@ -220,7 +259,7 @@ export async function runBookingAutomation({
 				`[dry-run] Would ${rebookRequested ? "rebook" : "book"}: ${timeLabel} on ${labelEn}${occ}${full ? " (WAITING LIST)" : ""}`,
 			);
 			newlyBooked.push(
-				`${timeLabel} d. ${labelDa}${occ}${full ? " (VENTELISTE)" : ""}`,
+				`${timeLabel} - ${labelDa}${occ}${full ? " (VENTELISTE)" : ""}`,
 			);
 			upcomingCount++;
 			registeredClassIds.add(cls.id);
@@ -303,7 +342,7 @@ export async function runBookingAutomation({
 			`Booked and verified: ${timeLabel} on ${labelEn}${occ}${onWaitingList ? " (WAITING LIST)" : ""}${consoleTracked}`,
 		);
 		newlyBooked.push(
-			`${timeLabel} d. ${labelDa}${occ}${onWaitingList ? " (VENTELISTE)" : ""}${pushoverTracked}`,
+			`${timeLabel} - ${labelDa}${occ}${onWaitingList ? " (VENTELISTE)" : ""}${pushoverTracked}`,
 		);
 
 		upcomingCount++;
