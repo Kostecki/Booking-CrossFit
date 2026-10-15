@@ -335,7 +335,7 @@ export async function runBookingAutomation({
 				: "";
 		const pushoverTracked =
 			trackedHere.length > 0
-				? `\n  Deltager også: ${trackedHere.join(", ")}`
+				? `\nDeltager også: ${trackedHere.join(", ")}`
 				: "";
 
 		console.log(
