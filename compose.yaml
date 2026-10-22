@@ -1,10 +1,12 @@
 # Web app + booking worker sharing one SQLite database on the `data` volume.
+# Pulls the image CI publishes to GHCR (IMAGE_TAG: latest, a branch name or sha-<short>);
+# `docker compose up --build` builds it locally instead.
 # Configure in apps/web/.env (see apps/web/.env.example), or point ENV_FILE elsewhere. Put the web service behind an
 # HTTPS reverse proxy: service workers and Web Push only work over HTTPS.
 services:
   web:
     build: .
-    image: booking-crossfit
+    image: ghcr.io/kostecki/booking-crossfit:${IMAGE_TAG:-latest}
     env_file: ${ENV_FILE:-apps/web/.env}
     environment:
       DATA_DIR: /data
@@ -21,7 +23,7 @@ services:
       start_period: 10s
 
   worker:
-    image: booking-crossfit
+    image: ghcr.io/kostecki/booking-crossfit:${IMAGE_TAG:-latest}
     command: ["node", "src/worker/index.ts"]
     env_file: ${ENV_FILE:-apps/web/.env}
     environment:

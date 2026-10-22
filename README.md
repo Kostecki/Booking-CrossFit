@@ -66,11 +66,19 @@ After changing `apps/web/src/db/schema.ts`, run `pnpm --filter @booking/web db:g
 
 ## Deploy
 
+CI (`.github/workflows/image.yml`) builds an amd64 + arm64 image on every push to `ghcr.io/kostecki/booking-crossfit`:
+- main is tagged `:latest`.
+- Other branches are tagged `:<branch>`.
+- Every build is also tagged `:sha-<short>`.
+
+On the server, with `compose.yaml` and `apps/web/.env` in place:
+
 ```sh
-docker compose up -d --build
+docker compose pull && docker compose up -d                    # :latest
+IMAGE_TAG=multi-user-pwa docker compose pull && IMAGE_TAG=multi-user-pwa docker compose up -d
 ```
 
-This runs two services from one image: `web` on port 3000 and `worker`, sharing a SQLite database on the `data` volume. They read `apps/web/.env`; set `ENV_FILE` to use another file.
+This runs two services from one image: `web` on port 3000 and `worker`, sharing a SQLite database on the `data` volume. They read `apps/web/.env`; set `ENV_FILE` to use another file. `docker compose up -d --build` builds the image locally instead.
 
 Put `web` behind an HTTPS reverse proxy. Service workers, Web Push and the `Secure` session cookie all need HTTPS.
 
