@@ -15,6 +15,7 @@ import {
 	withBookingToken,
 } from "#/server/bookingboard.ts";
 import { notifyUser } from "#/server/notify.ts";
+import { recordWaitlistDebug } from "#/server/waitlistDebug.ts";
 
 export type RunOutcome = "ok" | "transient_error" | "error";
 
@@ -38,6 +39,9 @@ export async function runForUser(user: User, runId: number, dryRun: boolean): Pr
 	const log = (line: string) => {
 		lines.push(line);
 		console.log(`[user ${user.id}] ${line}`);
+		// "[waitlist-debug] <kind> <json>" lines from the core also go to the debug file.
+		const debug = line.match(/^\[waitlist-debug\] (\S+) (.*)$/s);
+		if (debug) recordWaitlistDebug(debug[1]!, user.id, JSON.parse(debug[2]!), line);
 	};
 	db.update(runs).set({ status: "running", startedAt: new Date() }).where(eq(runs.id, runId)).run();
 
@@ -94,6 +98,10 @@ export async function runForUser(user: User, runId: number, dryRun: boolean): Pr
 		}
 		return "ok";
 	} catch (error) {
+		// A rejected booking may be the gym's 5-booking limit counting waiting-list spots.
+		if (error instanceof ApiError && error.status >= 400 && error.status < 500 && error.status !== 401) {
+			recordWaitlistDebug("booking-rejected", user.id, { status: error.status, message: error.message });
+		}
 		const reauth = error instanceof NeedsReauthError;
 		const message = reauth
 			? "BookingBoard afviste dit login. Log ind igen i appen."

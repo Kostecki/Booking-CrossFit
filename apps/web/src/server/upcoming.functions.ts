@@ -1,6 +1,7 @@
 import { cancelBooking, getMyBookings } from "@booking/core/api";
 import {
 	danishDateLabel,
+	isKnownStatus,
 	getTimePartsInZone,
 	isCancelled,
 	matchingSlot,
@@ -11,6 +12,7 @@ import { db } from "#/db/index.ts";
 import { rebookRequests, scheduleSlots, skips } from "#/db/schema.ts";
 import { getUpcomingClasses, TIME_ZONE, withBookingToken } from "./bookingboard.ts";
 import { authMiddleware } from "./middleware.ts";
+import { recordWaitlistDebug } from "./waitlistDebug.ts";
 
 export type UpcomingClass = {
 	classId: number;
@@ -84,6 +86,10 @@ export const getUpcoming = createServerFn({ method: "GET" })
 		};
 
 		for (const b of bookings) {
+			if (!isKnownStatus(b.status)) {
+				const cls = classesById.get(b.classId);
+				recordWaitlistDebug("unknown-status", user.id, { registration: b, class: cls ?? null }, `${b.id}:${b.status}`);
+			}
 			const ms = Date.parse(b.begins);
 			if (!Number.isFinite(ms) || ms <= nowMs) continue;
 			const state = isCancelled(b.status) ? "cancelled" : b.status === "SignedUp" ? "booked" : "waitlist";

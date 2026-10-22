@@ -13,6 +13,13 @@ const CANCELLED_STATUSES = new Set(["OptedOut", "OptedOutTooLate"]);
 
 export const isCancelled = (status: string) => CANCELLED_STATUSES.has(status);
 
+// Statuses seen with real data. Anything else is most likely the waiting list's
+// status, whose exact name hasn't been observed yet; it's logged with this prefix
+// so the app can record it (see apps/web waitlistDebug.ts). Remove once known.
+const KNOWN_STATUSES = new Set(["SignedUp", "OptedOut", "OptedOutTooLate", "OnTime", "NeverMet"]);
+export const isKnownStatus = (status: string) => KNOWN_STATUSES.has(status);
+export const WAITLIST_DEBUG = "[waitlist-debug]";
+
 // A recurring class to book: this title, on this weekday (0=Sun…6=Sat), at this time.
 export type ClassSlot = {
 	classTitle: string;
@@ -231,6 +238,9 @@ export async function runBookingAutomation({
 
 	// --- Current bookings (past + future) come straight from the account ---
 	const bookings = await getMyBookings(token, accountId);
+	for (const b of bookings) {
+		if (!isKnownStatus(b.status)) log(`${WAITLIST_DEBUG} unknown-status ${JSON.stringify(b)}`);
+	}
 	const held = bookings
 		.filter((b) => !CANCELLED_STATUSES.has(b.status))
 		.map((b) => ({ ...b, ms: Date.parse(b.begins) }))
@@ -340,9 +350,11 @@ export async function runBookingAutomation({
 					(b) => b.classId === cls.id && CANCELLED_STATUSES.has(b.status),
 				)
 			: undefined;
+		// Kept for the waiting-list debug log below.
+		let response: unknown;
 		if (cancelled) {
 			try {
-				await reactivateBooking(token, {
+				response = await reactivateBooking(token, {
 					participationId: cancelled.id,
 					classHourId: cls.id,
 					accountId,
@@ -352,7 +364,7 @@ export async function runBookingAutomation({
 				// Re-read before deciding whether a new POST is needed.
 				const current = await getMyBookings(token, accountId);
 				if (!current.some((b) => b.classId === cls.id)) {
-					await bookClass(token, { classHourId: cls.id, accountId });
+					response = await bookClass(token, { classHourId: cls.id, accountId });
 				} else if (
 					!current.some(
 						(b) => b.classId === cls.id && !CANCELLED_STATUSES.has(b.status),
@@ -362,7 +374,7 @@ export async function runBookingAutomation({
 				}
 			}
 		} else {
-			await bookClass(token, { classHourId: cls.id, accountId });
+			response = await bookClass(token, { classHourId: cls.id, accountId });
 		}
 
 		// Verify by re-reading the account's bookings.
@@ -377,6 +389,9 @@ export async function runBookingAutomation({
 		}
 
 		const onWaitingList = verified.status !== "SignedUp";
+		if (onWaitingList) {
+			log(`${WAITLIST_DEBUG} booked-not-signed-up ${JSON.stringify({ response, verified, class: cls })}`);
+		}
 
 		// Occupancy + "also attending" from the class detail (post-booking).
 		let trackedHere: string[] = [];

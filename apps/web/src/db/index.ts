@@ -7,7 +7,7 @@ import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 import * as schema from "./schema.ts";
 
 // Shared by the web server and the worker; both run migrations on start (idempotent).
-const dataDir = resolve(process.env.DATA_DIR ?? "data");
+export const dataDir = resolve(process.env.DATA_DIR ?? "data");
 mkdirSync(dataDir, { recursive: true });
 
 const sqlite = new Database(join(dataDir, "app.db"));

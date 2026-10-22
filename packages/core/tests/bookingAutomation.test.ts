@@ -175,3 +175,34 @@ test("a one-time request rebooks a cancelled class before later classes", async 
 		assert.ok(!requests.includes("POST /api/Participations"));
 	}, reactivate);
 });
+
+test("unknown statuses and waiting-list bookings are logged for debugging", async () => {
+	const bookings: ClassRegistration[] = [
+		{ id: 1, classId: 1, className: "WOD", begins: "2026-10-20T17:30:00+02:00", status: "OnWaitingList" },
+	];
+	// A full class: the POST comes back as something other than SignedUp.
+	const joinWaitingList = (method: string, path: string) => {
+		if (path !== "/api/Participations" || method !== "POST") return;
+		const registration: ClassRegistration = {
+			id: 2,
+			classId: 2,
+			className: "WOD",
+			begins: "2026-10-22T17:30:00+02:00",
+			status: "OnWaitingList",
+		};
+		bookings.push(registration);
+		return json(registration);
+	};
+
+	await withFakeApi(bookings, schedule.slice(0, 2), async () => {
+		const lines: string[] = [];
+		const booked = await runBookingAutomation(
+			config({ slots: slots.slice(0, 2), log: (line) => lines.push(line) }),
+		);
+		assert.deepEqual(booked.map((b) => [b.classId, b.waitingList]), [[2, true]]);
+		assert.ok(lines.some((l) => l.startsWith("[waitlist-debug] unknown-status ") && l.includes('"OnWaitingList"')));
+		const bookedLine = lines.find((l) => l.startsWith("[waitlist-debug] booked-not-signed-up "));
+		assert.ok(bookedLine);
+		assert.equal(JSON.parse(bookedLine.slice("[waitlist-debug] booked-not-signed-up ".length)).response.status, "OnWaitingList");
+	}, joinWaitingList);
+});
