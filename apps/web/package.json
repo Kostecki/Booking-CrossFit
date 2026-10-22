@@ -10,7 +10,8 @@
 		"build": "vite build",
 		"start": "node .output/server/index.mjs",
 		"db:generate": "drizzle-kit generate",
-		"typecheck": "tsc --noEmit"
+		"typecheck": "tsc --noEmit",
+		"worker": "node --env-file-if-exists=.env src/worker/index.ts"
 	},
 	"dependencies": {
 		"@booking/core": "workspace:*",
@@ -21,6 +22,7 @@
 		"@tanstack/react-router": "1.170.45",
 		"@tanstack/react-start": "1.169.3",
 		"better-sqlite3": "13.0.3",
+		"croner": "10.0.1",
 		"drizzle-orm": "0.45.4",
 		"nitro": "3.0.260610-beta",
 		"react": "^19.2.0",
