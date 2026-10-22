@@ -6,6 +6,7 @@ import {
 	Divider,
 	Drawer,
 	Group,
+	List,
 	Loader,
 	Select,
 	Stack,
@@ -81,7 +82,9 @@ function Schedule() {
 						}}
 					/>
 					<Text size="sm" c="dimmed">
-						Hver aften kl. 19 booker vi de næste hold fra dit skema, indtil du har 5 bookinger.
+						{user.status === "paused"
+							? "Slået fra. Der bookes ikke automatisk, før du slår det til igen. Dine nuværende bookinger bliver ikke rørt."
+							: "Hver aften kl. 19 bookes dine næste faste hold, indtil du har 5 bookinger – det maksimale CrossFit Roskilde tillader."}
 					</Text>
 				</Stack>
 			</Card>
@@ -121,6 +124,17 @@ function Schedule() {
 			<Button leftSection={<IconPlus size={16} />} variant="light" onClick={drawer.open}>
 				Tilføj hold
 			</Button>
+
+			<Stack gap={4} mt="md">
+				<Text size="sm" fw={500} c="dimmed">
+					Sådan virker det
+				</Text>
+				<List size="sm" c="dimmed" spacing={2}>
+					<List.Item>De tidligste hold bookes først.</List.Item>
+					<List.Item>Er et hold fuldt, kommer du på venteliste.</List.Item>
+					<List.Item>Hold du selv melder fra eller springer over, bookes ikke igen automatisk.</List.Item>
+				</List>
+			</Stack>
 
 			<AddClassesDrawer
 				opened={drawerOpened}

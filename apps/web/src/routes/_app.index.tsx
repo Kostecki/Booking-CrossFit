@@ -2,12 +2,15 @@ import {
 	Badge,
 	Button,
 	Card,
+	Divider,
 	Group,
 	Loader,
 	Stack,
 	Text,
 	Title,
+	Tooltip,
 } from "@mantine/core";
+import { useClickOutside } from "@mantine/hooks";
 import { IconPlayerPlay } from "@tabler/icons-react";
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
@@ -41,6 +44,11 @@ const STATE_BADGE: Record<
 function Upcoming() {
 	const { user } = Route.useRouteContext();
 	const { classes, hasSchedule } = Route.useLoaderData();
+	// What's actually held on BookingBoard comes first, apart from planned/cancelled/skipped.
+	const isHeld = (cls: UpcomingClass) =>
+		cls.state === "booked" || cls.state === "waitlist";
+	const booked = classes.filter(isHeld);
+	const notBooked = classes.filter((cls) => !isHeld(cls));
 	const router = useRouter();
 	const runNow = useServerFn(requestRun);
 	const [running, setRunning] = useState(false);
@@ -67,8 +75,7 @@ function Upcoming() {
 				<Stack gap="sm" align="flex-start">
 					<Title order={4}>Vælg dine faste hold</Title>
 					<Text size="sm" c="dimmed">
-						Fortæl hvilke hold du vil have booket hver uge, så booker vi dem
-						automatisk for dig.
+						Vælg hvilke hold du vil have booket hver uge, så bookes de automatisk.
 					</Text>
 					<Button component={Link} to="/schedule">
 						Vælg hold
@@ -101,7 +108,13 @@ function Upcoming() {
 			{classes.length === 0 && (
 				<Text c="dimmed">Ingen kommende hold endnu.</Text>
 			)}
-			{classes.map((cls) => (
+			{booked.map((cls) => (
+				<ClassRow key={cls.classId} cls={cls} />
+			))}
+			{booked.length > 0 && notBooked.length > 0 && (
+				<Divider label="Kommende bookinger" labelPosition="left" my={4} />
+			)}
+			{notBooked.map((cls) => (
 				<ClassRow key={cls.classId} cls={cls} />
 			))}
 		</Stack>
@@ -221,18 +234,66 @@ function ClassRow({ cls }: { cls: UpcomingClass }) {
 							{cls.title}
 							{cls.occupancy ? ` (${cls.occupancy})` : ""}
 						</Text>
-						<Badge size="sm" variant="light" color={badge.color}>
-							{badge.label}
-						</Badge>
+						<StatusBadge label={badge.label} color={badge.color} />
 						{view.rebookPending && !view.skipped && (
-							<Badge size="sm" variant="light" color="blue">
-								Genbookes
-							</Badge>
+							<StatusBadge label="Genbookes" color="blue" />
 						)}
 					</Group>
 				</Stack>
 				{action}
 			</Group>
 		</Card>
+	);
+}
+
+// Badges whose meaning isn't obvious get a tooltip; touch opens it too, since phones can't hover.
+const BADGE_HELP: Record<string, string> = {
+	Afmeldt:
+		"Du er afmeldt holdet. Det bookes ikke igen automatisk - tryk Genbook, hvis du vil booke igen.",
+	Genbookes:
+		"Bookes igen ved næste kørsel, eller når du trykker Book nu - hvis der er plads.",
+};
+
+function StatusBadge({ label, color }: { label: string; color: string }) {
+	const help = BADGE_HELP[label];
+	if (!help) {
+		return (
+			<Badge size="sm" variant="light" color={color}>
+				{label}
+			</Badge>
+		);
+	}
+	return <HelpBadge label={label} color={color} help={help} />;
+}
+
+// Controlled rather than Mantine's built-in events, which don't open on a tap: a tap
+// toggles it and a tap elsewhere closes it; hover only reacts to a real mouse, since
+// phones also fire pointerenter on tap, which would open and immediately re-close it.
+function HelpBadge({
+	label,
+	color,
+	help,
+}: {
+	label: string;
+	color: string;
+	help: string;
+}) {
+	const [opened, setOpened] = useState(false);
+	const ref = useClickOutside(() => setOpened(false));
+	return (
+		<Tooltip label={help} opened={opened} multiline w={240} withArrow>
+			<Badge
+				ref={ref}
+				size="sm"
+				variant="light"
+				color={color}
+				style={{ cursor: "help" }}
+				onClick={() => setOpened((o) => !o)}
+				onPointerEnter={(e) => e.pointerType === "mouse" && setOpened(true)}
+				onPointerLeave={(e) => e.pointerType === "mouse" && setOpened(false)}
+			>
+				{label}
+			</Badge>
+		</Tooltip>
 	);
 }
