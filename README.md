@@ -29,7 +29,11 @@ pnpm install           # dev types only
 ```sh
 pnpm start                      # book + notify
 DRY_RUN=1 pnpm start            # log what it would book, without booking
+pnpm test                       # core unit tests
 ```
+
+The API client and booking logic live in the `packages/core` workspace package
+(`@booking/core`); `script.ts` is a thin CLI over it.
 
 ## Configuration (`.env`)
 

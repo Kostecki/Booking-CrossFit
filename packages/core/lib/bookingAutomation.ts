@@ -6,25 +6,48 @@ import {
 	reactivateBooking,
 	toApiDateTime,
 } from "../bookingApi.ts";
-import type { ClazzMobile } from "../types.ts";
+import type { ClassRegistration, ClazzMobile } from "../types.ts";
 
 // Statuses that mean the booking no longer counts (cancelled / opted out).
 const CANCELLED_STATUSES = new Set(["OptedOut", "OptedOutTooLate"]);
+
+// A recurring class to book: this title, on this weekday (0=Sun…6=Sat), at this time.
+export type ClassSlot = {
+	classTitle: string;
+	weekday: number;
+	hour: number;
+	minute: number;
+};
 
 export type BookingAutomationConfig = {
 	token: string;
 	accountId: number;
 	centerTimeZone: string;
 	// participantId (as string) -> display name, for "also attending"
-	people: Record<string, string>;
-	classTitle: string;
-	targetWeekdays: number[];
-	maxSessionsPerWeek: number;
+	people?: Record<string, string>;
+	slots: ClassSlot[];
+	// Omit for no weekly limit (book the next matching classes up to maxTotalSessions).
+	maxSessionsPerWeek?: number;
 	maxTotalSessions: number;
-	targetHour: number;
-	targetMinute: number;
 	dryRun: boolean;
 	pendingRebookClassIds: number[];
+	// Specific class occurrences never to book; the next matching class takes the spot.
+	skipClassIds?: number[];
+	log?: (line: string) => void;
+};
+
+export type BookedClass = {
+	classId: number;
+	begins: string;
+	// e.g. "WOD 17:30"
+	timeLabel: string;
+	labelEn: string;
+	labelDa: string;
+	// e.g. " (12/16)", empty when unknown
+	occupancy: string;
+	waitingList: boolean;
+	alsoAttending: string[];
+	rebooked: boolean;
 };
 
 function getTimePartsInZone(
@@ -54,16 +77,6 @@ function getTimePartsInZone(
 	};
 }
 
-function isTargetTimeInZone(
-	timestampMs: number,
-	targetHour: number,
-	targetMinute: number,
-	timeZone: string,
-): boolean {
-	const t = getTimePartsInZone(timestampMs, timeZone);
-	return t.hour === targetHour && t.minute === targetMinute;
-}
-
 function weekdayForDate(year: number, month: number, day: number): number {
 	return new Date(year, month - 1, day).getDay();
 }
@@ -87,6 +100,23 @@ function isTargetClass(cls: ClazzMobile, targetTitle: string): boolean {
 	const title = cls.title?.trim().toUpperCase();
 	const type = cls.type?.trim().toUpperCase();
 	return title === target || type === target;
+}
+
+function matchingSlot(
+	cls: ClazzMobile,
+	ms: number,
+	slots: ClassSlot[],
+	timeZone: string,
+): ClassSlot | undefined {
+	const { year, month, day, hour, minute } = getTimePartsInZone(ms, timeZone);
+	const weekday = weekdayForDate(year, month, day);
+	return slots.find(
+		(slot) =>
+			slot.weekday === weekday &&
+			slot.hour === hour &&
+			slot.minute === minute &&
+			isTargetClass(cls, slot.classTitle),
+	);
 }
 
 const DA_WEEKDAYS = [
@@ -152,25 +182,50 @@ function occupancyLabel(
 	return count !== undefined && max !== undefined ? ` (${count}/${max})` : "";
 }
 
+/** Danish one-line summary of a booking, as used in notifications. */
+export function formatBookedDa(booked: BookedClass): string {
+	const waiting = booked.waitingList ? " (VENTELISTE)" : "";
+	const tracked =
+		booked.alsoAttending.length > 0
+			? `\nDeltager også: ${booked.alsoAttending.join(", ")}`
+			: "";
+	return `${booked.timeLabel} - ${booked.labelDa}${booked.occupancy}${waiting}${tracked}`;
+}
+
+/** The pending rebook requests that are now held (not cancelled) on the account. */
+export async function findCompletedRebooks(
+	token: string,
+	accountId: number,
+	pendingRebookClassIds: number[],
+): Promise<number[]> {
+	if (pendingRebookClassIds.length === 0) return [];
+	const current = await getMyBookings(token, accountId);
+	return pendingRebookClassIds.filter((classId) =>
+		current.some(
+			(b: ClassRegistration) =>
+				b.classId === classId && !CANCELLED_STATUSES.has(b.status),
+		),
+	);
+}
+
 export async function runBookingAutomation({
 	token,
 	accountId,
 	centerTimeZone,
-	people,
-	classTitle,
-	targetWeekdays,
-	maxSessionsPerWeek,
+	people = {},
+	slots,
+	maxSessionsPerWeek = Number.POSITIVE_INFINITY,
 	maxTotalSessions,
-	targetHour,
-	targetMinute,
 	dryRun,
 	pendingRebookClassIds,
-}: BookingAutomationConfig): Promise<string[]> {
+	skipClassIds = [],
+	log = console.log,
+}: BookingAutomationConfig): Promise<BookedClass[]> {
 	const nowMs = Date.now();
 	const runDate = new Date(nowMs).toLocaleDateString("en-GB", {
 		timeZone: centerTimeZone,
 	});
-	console.log(`Today: ${runDate}${dryRun ? "  (DRY RUN)" : ""}\n`);
+	log(`Today: ${runDate}${dryRun ? "  (DRY RUN)" : ""}\n`);
 
 	// --- Current bookings (past + future) come straight from the account ---
 	const bookings = await getMyBookings(token, accountId);
@@ -185,6 +240,7 @@ export async function runBookingAutomation({
 	const registeredClassIds = new Set(bookings.map((b) => b.classId));
 	const heldClassIds = new Set(held.map((b) => b.classId));
 	const pendingRebooks = new Set(pendingRebookClassIds);
+	const skipped = new Set(skipClassIds);
 
 	// Weekly counts use all held bookings (so earlier-this-week sessions still count).
 	const bookingsByWeek = new Map<string, number>();
@@ -196,7 +252,7 @@ export async function runBookingAutomation({
 	const bookedLabels = upcoming.map((b) =>
 		dateLabel(b.ms, centerTimeZone, "en-GB"),
 	);
-	console.log(
+	log(
 		`Currently booked (upcoming): ${upcoming.length}/${maxTotalSessions}` +
 			(bookedLabels.length > 0 ? `\n${bookedLabels.join("\n")}` : "") +
 			"\n",
@@ -204,7 +260,7 @@ export async function runBookingAutomation({
 
 	let upcomingCount = upcoming.length;
 	if (upcomingCount >= maxTotalSessions) {
-		console.log(
+		log(
 			`Already at the target of ${maxTotalSessions} booked sessions — nothing to do.`,
 		);
 		return [];
@@ -215,37 +271,37 @@ export async function runBookingAutomation({
 	const startIso = toApiDateTime(start.year, start.month, start.day);
 	const classes = await getClasses(token, startIso);
 
-	// Candidate target sessions: WOD, at the target time, on a target weekday, in the future.
+	// Candidate sessions: future classes matching any slot (title, weekday and time).
 	const candidates = classes
 		.map((cls) => ({ cls, ms: Date.parse(cls.begins) }))
+		.filter(({ ms }) => Number.isFinite(ms) && ms > nowMs)
+		.map(({ cls, ms }) => ({
+			cls,
+			ms,
+			slot: matchingSlot(cls, ms, slots, centerTimeZone),
+		}))
 		.filter(
-			({ cls, ms }) =>
-				Number.isFinite(ms) &&
-				ms > nowMs &&
-				isTargetClass(cls, classTitle) &&
-				isTargetTimeInZone(ms, targetHour, targetMinute, centerTimeZone),
+			(c): c is { cls: ClazzMobile; ms: number; slot: ClassSlot } =>
+				c.slot !== undefined,
 		)
-		.filter(({ ms }) => {
-			const { year, month, day } = getTimePartsInZone(ms, centerTimeZone);
-			return targetWeekdays.includes(weekdayForDate(year, month, day));
-		})
 		.sort((a, b) =>
 			Number(pendingRebooks.has(b.cls.id)) - Number(pendingRebooks.has(a.cls.id)) ||
 			a.ms - b.ms,
 		);
 
-	const timeLabel = `${classTitle} ${String(targetHour).padStart(2, "0")}:${String(targetMinute).padStart(2, "0")}`;
-	const newlyBooked: string[] = [];
+	const newlyBooked: BookedClass[] = [];
 
-	for (const { cls, ms } of candidates) {
+	for (const { cls, ms, slot } of candidates) {
 		if (upcomingCount >= maxTotalSessions) break;
 		if (heldClassIds.has(cls.id)) continue;
+		if (skipped.has(cls.id)) continue;
 		const rebookRequested = pendingRebooks.has(cls.id);
 		if (registeredClassIds.has(cls.id) && !rebookRequested) continue;
 
 		const weekKey = getWeekKey(ms, centerTimeZone);
 		if ((bookingsByWeek.get(weekKey) ?? 0) >= maxSessionsPerWeek) continue;
 
+		const timeLabel = `${slot.classTitle} ${String(slot.hour).padStart(2, "0")}:${String(slot.minute).padStart(2, "0")}`;
 		const labelEn = dateLabel(ms, centerTimeZone, "en-GB");
 		const labelDa = dateLabel(ms, centerTimeZone, "da-DK");
 
@@ -255,12 +311,20 @@ export async function runBookingAutomation({
 				cls.maximumNumberOfParticipants,
 			);
 			const full = cls.hasSeatsLeft === false;
-			console.log(
+			log(
 				`[dry-run] Would ${rebookRequested ? "rebook" : "book"}: ${timeLabel} on ${labelEn}${occ}${full ? " (WAITING LIST)" : ""}`,
 			);
-			newlyBooked.push(
-				`${timeLabel} - ${labelDa}${occ}${full ? " (VENTELISTE)" : ""}`,
-			);
+			newlyBooked.push({
+				classId: cls.id,
+				begins: cls.begins,
+				timeLabel,
+				labelEn,
+				labelDa,
+				occupancy: occ,
+				waitingList: full,
+				alsoAttending: [],
+				rebooked: rebookRequested,
+			});
 			upcomingCount++;
 			registeredClassIds.add(cls.id);
 			heldClassIds.add(cls.id);
@@ -268,7 +332,7 @@ export async function runBookingAutomation({
 			continue;
 		}
 
-		console.log(`${rebookRequested ? "Rebooking" : "Booking"}: ${timeLabel} on ${labelEn}`);
+		log(`${rebookRequested ? "Rebooking" : "Booking"}: ${timeLabel} on ${labelEn}`);
 		const cancelled = rebookRequested
 			? bookings.find(
 					(b) => b.classId === cls.id && CANCELLED_STATUSES.has(b.status),
@@ -333,17 +397,21 @@ export async function runBookingAutomation({
 			trackedHere.length > 0
 				? ` - also attending: ${trackedHere.join(", ")}`
 				: "";
-		const pushoverTracked =
-			trackedHere.length > 0
-				? `\nDeltager også: ${trackedHere.join(", ")}`
-				: "";
 
-		console.log(
+		log(
 			`Booked and verified: ${timeLabel} on ${labelEn}${occ}${onWaitingList ? " (WAITING LIST)" : ""}${consoleTracked}`,
 		);
-		newlyBooked.push(
-			`${timeLabel} - ${labelDa}${occ}${onWaitingList ? " (VENTELISTE)" : ""}${pushoverTracked}`,
-		);
+		newlyBooked.push({
+			classId: cls.id,
+			begins: cls.begins,
+			timeLabel,
+			labelEn,
+			labelDa,
+			occupancy: occ,
+			waitingList: onWaitingList,
+			alsoAttending: trackedHere,
+			rebooked: rebookRequested,
+		});
 
 		upcomingCount++;
 		registeredClassIds.add(cls.id);
@@ -352,7 +420,7 @@ export async function runBookingAutomation({
 	}
 
 	if (newlyBooked.length === 0) {
-		console.log("No new sessions booked.");
+		log("No new sessions booked.");
 	}
 
 	return newlyBooked;

@@ -1,6 +1,10 @@
 import { readFile, writeFile } from "node:fs/promises";
-import { getAccount, getMyBookings, login, sendPushoverNotification } from "./bookingApi.ts";
-import { runBookingAutomation } from "./lib/bookingAutomation.ts";
+import { getAccount, login, sendPushoverNotification } from "@booking/core/api";
+import {
+	findCompletedRebooks,
+	formatBookedDa,
+	runBookingAutomation,
+} from "@booking/core/automation";
 
 const bookingStateFile = new URL("./rebook-state.json", import.meta.url);
 const bookingRequestsFile = new URL("./booking-requests.json", import.meta.url);
@@ -129,26 +133,23 @@ async function main(): Promise<void> {
 		accountId: account.id,
 		centerTimeZone,
 		people,
-		classTitle,
-		targetWeekdays,
+		slots: targetWeekdays.map((weekday) => ({
+			classTitle,
+			weekday,
+			hour: targetHour,
+			minute: targetMinute,
+		})),
 		maxSessionsPerWeek,
 		maxTotalSessions,
-		targetHour,
-		targetMinute,
 		dryRun,
 		pendingRebookClassIds,
 	});
 
-	if (!dryRun && pendingRebookClassIds.length > 0) {
-		const current = await getMyBookings(token, account.id);
-		const newlyCompleted = pendingRebookClassIds.filter(
-			(classId) =>
-				current.some(
-					(b) =>
-						b.classId === classId &&
-						b.status !== "OptedOut" &&
-						b.status !== "OptedOutTooLate",
-				),
+	if (!dryRun) {
+		const newlyCompleted = await findCompletedRebooks(
+			token,
+			account.id,
+			pendingRebookClassIds,
 		);
 		if (newlyCompleted.length > 0) {
 			await writeFile(
@@ -165,7 +166,7 @@ async function main(): Promise<void> {
 			token: PUSHOVER_TOKEN,
 			user: PUSHOVER_USER,
 			title: "CrossFit Bookinger",
-			message: `Booket ${newlyBooked.length} ${trainingWord}:\n${newlyBooked.join("\n")}`,
+			message: `Booket ${newlyBooked.length} ${trainingWord}:\n${newlyBooked.map(formatBookedDa).join("\n")}`,
 		});
 	}
 }

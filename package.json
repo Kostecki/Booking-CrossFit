@@ -3,7 +3,8 @@
 	"version": "1.0.0",
 	"type": "module",
 	"scripts": {
-		"start": "node --env-file=.env script.ts"
+		"start": "node --env-file=.env script.ts",
+		"test": "pnpm --filter @booking/core test"
 	},
 	"packageManager": "pnpm@10.33.0",
 	"devDependencies": {
@@ -12,5 +13,8 @@
 	},
 	"volta": {
 		"node": "25.8.1"
+	},
+	"dependencies": {
+		"@booking/core": "workspace:*"
 	}
 }

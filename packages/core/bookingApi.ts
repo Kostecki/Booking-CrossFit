@@ -12,6 +12,17 @@ const BASE_URL =
 	process.env.API_BASE_URL ??
 	"https://crossfitroskilde.mobile.api.bookingboard.io";
 
+/** A non-2xx response from the BookingBoard API. `status` 401 means a bad or expired login. */
+export class ApiError extends Error {
+	readonly status: number;
+
+	constructor(message: string, status: number) {
+		super(message);
+		this.name = "ApiError";
+		this.status = status;
+	}
+}
+
 type ApiFetchOptions = {
 	method?: string;
 	token?: string;
@@ -44,8 +55,9 @@ async function apiFetch<T>(
 
 	if (!response.ok) {
 		const text = await response.text();
-		throw new Error(
+		throw new ApiError(
 			`${method} ${path} failed: ${response.status} ${response.statusText} - ${text}`,
+			response.status,
 		);
 	}
 
