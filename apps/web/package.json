@@ -10,6 +10,7 @@
 		"build": "vite build",
 		"start": "node .output/server/index.mjs",
 		"db:generate": "drizzle-kit generate",
+		"db:migrate": "node --env-file-if-exists=.env node_modules/drizzle-kit/bin.cjs migrate",
 		"typecheck": "tsc --noEmit",
 		"worker": "node --env-file-if-exists=.env src/worker/index.ts"
 	},

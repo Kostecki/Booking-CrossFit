@@ -52,7 +52,9 @@ Worker flags for testing:
 - `--daily-now` runs the daily job at startup.
 - `--no-jitter` skips the random delays.
 
-After changing `apps/web/src/db/schema.ts`, run `pnpm --filter @booking/web db:generate`. Migrations are applied automatically on startup.
+After changing `apps/web/src/db/schema.ts`, run `pnpm --filter @booking/web db:generate`. Never write or edit migration SQL by hand.
+
+Migrations are applied when the server or the worker starts. A dev server that was already running doesn't apply new ones, so run `pnpm --filter @booking/web db:migrate` (it uses `DATA_DIR` from `apps/web/.env`).
 
 ## Configuration (`apps/web/.env`)
 
