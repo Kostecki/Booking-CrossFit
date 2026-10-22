@@ -121,7 +121,7 @@ function Schedule() {
 					))}
 				</Card>
 			)}
-			<Button leftSection={<IconPlus size={16} />} variant="light" onClick={drawer.open}>
+			<Button leftSection={<IconPlus size={16} />} onClick={drawer.open}>
 				Tilføj hold
 			</Button>
 

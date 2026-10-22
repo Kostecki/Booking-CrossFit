@@ -137,7 +137,7 @@ export function NotificationsCard({ publicKey }: { publicKey: string | null }) {
 					<>
 						<Text size="sm">Slået til på denne enhed.</Text>
 						<Group>
-							<Button variant="light" onClick={test} loading={busy}>
+							<Button variant="outline" onClick={test} loading={busy}>
 								Send testnotifikation
 							</Button>
 							<Button variant="subtle" color="gray" onClick={disable} disabled={busy}>
