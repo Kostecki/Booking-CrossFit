@@ -1,0 +1,5 @@
+# Local development only: `docker compose up --build` loads this automatically.
+# Komodo deploys with `-f docker-compose.yml`, so this file is ignored on the server.
+services:
+  web:
+    build: .

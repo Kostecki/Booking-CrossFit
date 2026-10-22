@@ -22,6 +22,8 @@ ENV NODE_ENV=production \
 	PORT=3000 \
 	DATA_DIR=/data \
 	MIGRATIONS_DIR=/app/apps/web/drizzle
+# Named volumes inherit this ownership; a bind mount's host folder must be chowned to
+# 1000:1000 (the "node" user) by hand.
 RUN mkdir /data && chown node:node /data
 # Keep the workspace layout: the worker runs from TypeScript source (Node strips types,
 # but not under node_modules), and the server resolves better-sqlite3 from apps/web.

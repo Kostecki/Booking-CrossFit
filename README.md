@@ -66,23 +66,27 @@ After changing `apps/web/src/db/schema.ts`, run `pnpm --filter @booking/web db:g
 
 ## Deploy
 
-CI (`.github/workflows/image.yml`) builds an amd64 + arm64 image on every push to `ghcr.io/kostecki/booking-crossfit`:
-- main is tagged `:latest`.
-- Other branches are tagged `:<branch>`.
-- Every build is also tagged `:sha-<short>`.
+This is set up like the other homelab projects:
+- CI (`.github/workflows/build-push-image.yml`) tests the code, builds amd64 + arm64 images on native runners, and publishes them to `ghcr.io/kostecki/booking-crossfit`.
+- Pushes to main are tagged `:latest` and `:sha-<short>`, then deployed through Komodo (`Kostecki/shared-actions` deploy-komodo, over Tailscale).
+- Pushes to other branches publish `:<branch>` and `:sha-<short>` without deploying.
 
-On the server, with `compose.yaml` and `apps/web/.env` in place:
+The Komodo stack deploys `docker-compose.yml`. It runs `web` (port `${APP_PORT:-3000}`) and `worker` from the same image, sharing the SQLite database in `${DATA_DIR}/data`.
 
-```sh
-docker compose pull && docker compose up -d                    # :latest
-IMAGE_TAG=multi-user-pwa docker compose pull && IMAGE_TAG=multi-user-pwa docker compose up -d
-```
+Setup:
 
-This runs two services from one image: `web` on port 3000 and `worker`, sharing a SQLite database on the `data` volume. They read `apps/web/.env`; set `ENV_FILE` to use another file. `docker compose up -d --build` builds the image locally instead.
+1. Create the data folder on the server and give it to the image's `node` user: `sudo chown -R 1000:1000 <docker root>/projects/booking-crossfit/data`.
+2. Create the Komodo stack from this repo with `docker-compose.yml`. In its Environment, set:
+   - `DATA_DIR`
+   - `APP_ENCRYPTION_KEY`
+   - `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`
+   - optionally `IMAGE_TAG` (e.g. `multi-user-pwa` to try a branch), `APP_PORT`, `DRY_RUN=1`
+3. Set the repo variables `TS_OAUTH_CLIENT_ID`, `TS_HOST`, `KOMODO_PORT`, `KOMODO_STACK_ID` and the secrets `KOMODO_API_KEY`, `KOMODO_API_SECRET`.
+4. In Pangolin, add a resource for the web service. It must be HTTPS: service workers, Web Push and the `Secure` session cookie all need it. The app has its own login, so Pangolin auth isn't needed in front of it.
 
-Put `web` behind an HTTPS reverse proxy. Service workers, Web Push and the `Secure` session cookie all need HTTPS.
+`nautical-backup` picks up both containers (group `booking-crossfit`). Keep `APP_ENCRYPTION_KEY` outside the backups.
 
-Back up the `data` volume and keep `APP_ENCRYPTION_KEY` somewhere other than the backups.
+Locally, `docker compose up --build` builds the image through `compose.override.yaml`. It reads variables from the root `.env`.
 
 ## Legacy CLI
 
