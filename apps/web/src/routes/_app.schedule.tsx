@@ -26,7 +26,7 @@ import {
 	setSlot,
 } from "#/server/schedule.functions.ts";
 
-export const Route = createFileRoute("/_app/skema")({
+export const Route = createFileRoute("/_app/schedule")({
 	loader: () => getTimetable(),
 	pendingComponent: () => <Loader m="xl" />,
 	component: Schedule,

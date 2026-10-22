@@ -41,7 +41,7 @@ function Upcoming() {
 				notifyInfo(result.error);
 				return;
 			}
-			await router.navigate({ to: "/aktivitet" });
+			await router.navigate({ to: "/activity" });
 		} catch (error) {
 			notifyError(error);
 		} finally {
@@ -57,7 +57,7 @@ function Upcoming() {
 					<Text size="sm" c="dimmed">
 						Fortæl hvilke hold du vil have booket hver uge, så booker vi dem automatisk for dig.
 					</Text>
-					<Button component={Link} to="/skema">
+					<Button component={Link} to="/schedule">
 						Vælg hold
 					</Button>
 				</Stack>

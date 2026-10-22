@@ -6,7 +6,7 @@ import { NotificationsCard } from "#/components/NotificationsCard.tsx";
 import { deleteAccount, logout } from "#/server/auth.functions.ts";
 import { getPushConfig } from "#/server/push.functions.ts";
 
-export const Route = createFileRoute("/_app/indstillinger")({
+export const Route = createFileRoute("/_app/settings")({
 	loader: () => getPushConfig(),
 	component: Settings,
 });

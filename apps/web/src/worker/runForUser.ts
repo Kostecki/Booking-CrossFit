@@ -113,7 +113,7 @@ export async function runForUser(user: User, runId: number, dryRun: boolean): Pr
 			if (reauth && user.status !== "needs_reauth") {
 				await notifyUser(user.id, { title: "Log ind igen", body: message, url: "/login" });
 			} else if (!reauth && previous?.status !== "error") {
-				await notifyUser(user.id, { title: "Booking fejlede", body: message, url: "/aktivitet" });
+				await notifyUser(user.id, { title: "Booking fejlede", body: message, url: "/activity" });
 			}
 		}
 		return isTransient(error) ? "transient_error" : "error";

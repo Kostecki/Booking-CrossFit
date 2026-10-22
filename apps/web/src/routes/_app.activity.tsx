@@ -3,7 +3,7 @@ import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { getRuns, type RunSummary } from "#/server/runs.functions.ts";
 
-export const Route = createFileRoute("/_app/aktivitet")({
+export const Route = createFileRoute("/_app/activity")({
 	loader: () => getRuns(),
 	pendingComponent: () => <Loader m="xl" />,
 	component: Activity,

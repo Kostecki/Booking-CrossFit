@@ -18,9 +18,9 @@ export const Route = createFileRoute("/_app")({
 
 const tabs = [
 	{ to: "/", label: "Kommende", icon: IconCalendarEvent },
-	{ to: "/skema", label: "Skema", icon: IconListCheck },
-	{ to: "/aktivitet", label: "Aktivitet", icon: IconActivity },
-	{ to: "/indstillinger", label: "Indstillinger", icon: IconSettings },
+	{ to: "/schedule", label: "Skema", icon: IconListCheck },
+	{ to: "/activity", label: "Aktivitet", icon: IconActivity },
+	{ to: "/settings", label: "Indstillinger", icon: IconSettings },
 ] as const;
 
 function Layout() {

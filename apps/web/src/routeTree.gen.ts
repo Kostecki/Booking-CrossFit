@@ -12,10 +12,9 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppIndexRouteImport } from './routes/_app.index'
-import { Route as AppAktivitetRouteImport } from './routes/_app.aktivitet'
-import { Route as AppIndstillingerRouteImport } from './routes/_app.indstillinger'
-import { Route as AppKommendeRouteImport } from './routes/_app.kommende'
-import { Route as AppSkemaRouteImport } from './routes/_app.skema'
+import { Route as AppActivityRouteImport } from './routes/_app.activity'
+import { Route as AppScheduleRouteImport } from './routes/_app.schedule'
+import { Route as AppSettingsRouteImport } from './routes/_app.settings'
 
 const AppRoute = AppRouteImport.update({
   id: '/_app',
@@ -31,67 +30,57 @@ const AppIndexRoute = AppIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppRoute,
 } as any)
-const AppAktivitetRoute = AppAktivitetRouteImport.update({
-  id: '/aktivitet',
-  path: '/aktivitet',
+const AppActivityRoute = AppActivityRouteImport.update({
+  id: '/activity',
+  path: '/activity',
   getParentRoute: () => AppRoute,
 } as any)
-const AppIndstillingerRoute = AppIndstillingerRouteImport.update({
-  id: '/indstillinger',
-  path: '/indstillinger',
+const AppScheduleRoute = AppScheduleRouteImport.update({
+  id: '/schedule',
+  path: '/schedule',
   getParentRoute: () => AppRoute,
 } as any)
-const AppKommendeRoute = AppKommendeRouteImport.update({
-  id: '/kommende',
-  path: '/kommende',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppSkemaRoute = AppSkemaRouteImport.update({
-  id: '/skema',
-  path: '/skema',
+const AppSettingsRoute = AppSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
   getParentRoute: () => AppRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/login': typeof LoginRoute
-  '/aktivitet': typeof AppAktivitetRoute
-  '/indstillinger': typeof AppIndstillingerRoute
-  '/kommende': typeof AppKommendeRoute
-  '/skema': typeof AppSkemaRoute
+  '/activity': typeof AppActivityRoute
+  '/schedule': typeof AppScheduleRoute
+  '/settings': typeof AppSettingsRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
-  '/aktivitet': typeof AppAktivitetRoute
-  '/indstillinger': typeof AppIndstillingerRoute
-  '/kommende': typeof AppKommendeRoute
-  '/skema': typeof AppSkemaRoute
+  '/activity': typeof AppActivityRoute
+  '/schedule': typeof AppScheduleRoute
+  '/settings': typeof AppSettingsRoute
   '/': typeof AppIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
-  '/_app/aktivitet': typeof AppAktivitetRoute
-  '/_app/indstillinger': typeof AppIndstillingerRoute
-  '/_app/kommende': typeof AppKommendeRoute
-  '/_app/skema': typeof AppSkemaRoute
+  '/_app/activity': typeof AppActivityRoute
+  '/_app/schedule': typeof AppScheduleRoute
+  '/_app/settings': typeof AppSettingsRoute
   '/_app/': typeof AppIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths:
-    '/' | '/login' | '/aktivitet' | '/indstillinger' | '/kommende' | '/skema'
+  fullPaths: '/' | '/login' | '/activity' | '/schedule' | '/settings'
   fileRoutesByTo: FileRoutesByTo
-  to: '/login' | '/aktivitet' | '/indstillinger' | '/kommende' | '/skema' | '/'
+  to: '/login' | '/activity' | '/schedule' | '/settings' | '/'
   id:
     | '__root__'
     | '/_app'
     | '/login'
-    | '/_app/aktivitet'
-    | '/_app/indstillinger'
-    | '/_app/kommende'
-    | '/_app/skema'
+    | '/_app/activity'
+    | '/_app/schedule'
+    | '/_app/settings'
     | '/_app/'
   fileRoutesById: FileRoutesById
 }
@@ -123,50 +112,41 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppIndexRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/aktivitet': {
-      id: '/_app/aktivitet'
-      path: '/aktivitet'
-      fullPath: '/aktivitet'
-      preLoaderRoute: typeof AppAktivitetRouteImport
+    '/_app/activity': {
+      id: '/_app/activity'
+      path: '/activity'
+      fullPath: '/activity'
+      preLoaderRoute: typeof AppActivityRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/indstillinger': {
-      id: '/_app/indstillinger'
-      path: '/indstillinger'
-      fullPath: '/indstillinger'
-      preLoaderRoute: typeof AppIndstillingerRouteImport
+    '/_app/schedule': {
+      id: '/_app/schedule'
+      path: '/schedule'
+      fullPath: '/schedule'
+      preLoaderRoute: typeof AppScheduleRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/kommende': {
-      id: '/_app/kommende'
-      path: '/kommende'
-      fullPath: '/kommende'
-      preLoaderRoute: typeof AppKommendeRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/skema': {
-      id: '/_app/skema'
-      path: '/skema'
-      fullPath: '/skema'
-      preLoaderRoute: typeof AppSkemaRouteImport
+    '/_app/settings': {
+      id: '/_app/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof AppSettingsRouteImport
       parentRoute: typeof AppRoute
     }
   }
 }
 
 interface AppRouteChildren {
-  AppAktivitetRoute: typeof AppAktivitetRoute
-  AppIndstillingerRoute: typeof AppIndstillingerRoute
-  AppKommendeRoute: typeof AppKommendeRoute
-  AppSkemaRoute: typeof AppSkemaRoute
+  AppActivityRoute: typeof AppActivityRoute
+  AppScheduleRoute: typeof AppScheduleRoute
+  AppSettingsRoute: typeof AppSettingsRoute
   AppIndexRoute: typeof AppIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
-  AppAktivitetRoute: AppAktivitetRoute,
-  AppIndstillingerRoute: AppIndstillingerRoute,
-  AppKommendeRoute: AppKommendeRoute,
-  AppSkemaRoute: AppSkemaRoute,
+  AppActivityRoute: AppActivityRoute,
+  AppScheduleRoute: AppScheduleRoute,
+  AppSettingsRoute: AppSettingsRoute,
   AppIndexRoute: AppIndexRoute,
 }
 
