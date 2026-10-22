@@ -180,10 +180,11 @@ export async function cancelBooking(
 		accountId,
 		status: "OptedOut",
 	};
-	return apiFetch<ClassRegistration>(
-		`/api/Participations/${participationId}`,
-		{ method: "PUT", token, body },
-	);
+	return apiFetch<ClassRegistration>(`/api/Participations/${participationId}`, {
+		method: "PUT",
+		token,
+		body,
+	});
 }
 
 export async function sendPushoverNotification({

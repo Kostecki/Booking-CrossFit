@@ -1,14 +1,16 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+
 import {
 	type BookingAutomationConfig,
 	runBookingAutomation,
 } from "../lib/bookingAutomation.ts";
 import type { ClassRegistration, ClazzMobile } from "../types.ts";
 
-const json = (value: unknown) => new Response(JSON.stringify(value), {
-	headers: { "Content-Type": "application/json" },
-});
+const json = (value: unknown) =>
+	new Response(JSON.stringify(value), {
+		headers: { "Content-Type": "application/json" },
+	});
 
 // Fake BookingBoard API: serves the given bookings and classes, and records requests.
 // A POST to /api/Participations adds a SignedUp registration.
@@ -33,7 +35,8 @@ async function withFakeApi(
 		if (path === "/api/Classes") return json(classes);
 		if (path === "/api/Participations" && method === "POST") {
 			const { classHourId } = JSON.parse(String(init?.body));
-			const cls = classes.find((c) => c.id === classHourId)!;
+			const cls = classes.find((c) => c.id === classHourId);
+			if (!cls) throw new Error(`Unknown class ${classHourId}`);
 			const registration: ClassRegistration = {
 				id: bookings.length + 1000,
 				classId: cls.id,
@@ -107,7 +110,10 @@ const slots = [
 test("books the next classes matching any slot until the total cap", async () => {
 	await withFakeApi([], schedule, async () => {
 		const booked = await runBookingAutomation(config({ slots }));
-		assert.deepEqual(booked.map((b) => b.classId), [1, 2, 3, 4, 5]);
+		assert.deepEqual(
+			booked.map((b) => b.classId),
+			[1, 2, 3, 4, 5],
+		);
 		assert.deepEqual(
 			booked.map((b) => b.timeLabel),
 			["WOD 17:30", "WOD 17:30", "Gymnastics 12:30", "WOD 17:30", "WOD 17:30"],
@@ -120,7 +126,10 @@ test("an optional weekly cap leaves the remaining slots of a week unbooked", asy
 		const booked = await runBookingAutomation(
 			config({ slots, maxSessionsPerWeek: 2 }),
 		);
-		assert.deepEqual(booked.map((b) => b.classId), [1, 2, 4, 5, 7]);
+		assert.deepEqual(
+			booked.map((b) => b.classId),
+			[1, 2, 4, 5, 7],
+		);
 	});
 });
 
@@ -129,7 +138,10 @@ test("a skipped class is never booked and the next matching class takes its spot
 		const booked = await runBookingAutomation(
 			config({ slots, skipClassIds: [2] }),
 		);
-		assert.deepEqual(booked.map((b) => b.classId), [1, 3, 4, 5, 6]);
+		assert.deepEqual(
+			booked.map((b) => b.classId),
+			[1, 3, 4, 5, 6],
+		);
 		assert.ok(!requests.includes("GET /api/Classes/2"));
 	});
 });
@@ -156,29 +168,40 @@ test("a one-time request rebooks a cancelled class before later classes", async 
 	];
 	const reactivate = (method: string, path: string) => {
 		if (path !== "/api/Participations/7146311" || method !== "PUT") return;
-		bookings[4]!.status = "SignedUp";
+		bookings[4].status = "SignedUp";
 		return json(bookings[4]);
 	};
 
-	await withFakeApi(bookings, classes, async (requests) => {
-		const booked = await runBookingAutomation(
-			config({
-				slots: slots.slice(0, 2),
-				maxSessionsPerWeek: 2,
-				pendingRebookClassIds: [1458123],
-			}),
-		);
-		assert.equal(booked.length, 1);
-		assert.equal(booked[0]!.rebooked, true);
-		assert.match(booked[0]!.labelDa, /3\. November/);
-		assert.ok(requests.includes("PUT /api/Participations/7146311"));
-		assert.ok(!requests.includes("POST /api/Participations"));
-	}, reactivate);
+	await withFakeApi(
+		bookings,
+		classes,
+		async (requests) => {
+			const booked = await runBookingAutomation(
+				config({
+					slots: slots.slice(0, 2),
+					maxSessionsPerWeek: 2,
+					pendingRebookClassIds: [1458123],
+				}),
+			);
+			assert.equal(booked.length, 1);
+			assert.equal(booked[0].rebooked, true);
+			assert.match(booked[0].labelDa, /3\. November/);
+			assert.ok(requests.includes("PUT /api/Participations/7146311"));
+			assert.ok(!requests.includes("POST /api/Participations"));
+		},
+		reactivate,
+	);
 });
 
 test("unknown statuses and waiting-list bookings are logged for debugging", async () => {
 	const bookings: ClassRegistration[] = [
-		{ id: 1, classId: 1, className: "WOD", begins: "2026-10-20T17:30:00+02:00", status: "OnWaitingList" },
+		{
+			id: 1,
+			classId: 1,
+			className: "WOD",
+			begins: "2026-10-20T17:30:00+02:00",
+			status: "OnWaitingList",
+		},
 	];
 	// A full class: the POST comes back as something other than SignedUp.
 	const joinWaitingList = (method: string, path: string) => {
@@ -194,15 +217,36 @@ test("unknown statuses and waiting-list bookings are logged for debugging", asyn
 		return json(registration);
 	};
 
-	await withFakeApi(bookings, schedule.slice(0, 2), async () => {
-		const lines: string[] = [];
-		const booked = await runBookingAutomation(
-			config({ slots: slots.slice(0, 2), log: (line) => lines.push(line) }),
-		);
-		assert.deepEqual(booked.map((b) => [b.classId, b.waitingList]), [[2, true]]);
-		assert.ok(lines.some((l) => l.startsWith("[waitlist-debug] unknown-status ") && l.includes('"OnWaitingList"')));
-		const bookedLine = lines.find((l) => l.startsWith("[waitlist-debug] booked-not-signed-up "));
-		assert.ok(bookedLine);
-		assert.equal(JSON.parse(bookedLine.slice("[waitlist-debug] booked-not-signed-up ".length)).response.status, "OnWaitingList");
-	}, joinWaitingList);
+	await withFakeApi(
+		bookings,
+		schedule.slice(0, 2),
+		async () => {
+			const lines: string[] = [];
+			const booked = await runBookingAutomation(
+				config({ slots: slots.slice(0, 2), log: (line) => lines.push(line) }),
+			);
+			assert.deepEqual(
+				booked.map((b) => [b.classId, b.waitingList]),
+				[[2, true]],
+			);
+			assert.ok(
+				lines.some(
+					(l) =>
+						l.startsWith("[waitlist-debug] unknown-status ") &&
+						l.includes('"OnWaitingList"'),
+				),
+			);
+			const bookedLine = lines.find((l) =>
+				l.startsWith("[waitlist-debug] booked-not-signed-up "),
+			);
+			assert.ok(bookedLine);
+			assert.equal(
+				JSON.parse(
+					bookedLine.slice("[waitlist-debug] booked-not-signed-up ".length),
+				).response.status,
+				"OnWaitingList",
+			);
+		},
+		joinWaitingList,
+	);
 });

@@ -1,6 +1,7 @@
 import { Badge, Card, Group, Loader, Stack, Text } from "@mantine/core";
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useEffect } from "react";
+
 import { getRuns, type RunSummary } from "#/server/runs.functions.ts";
 
 export const Route = createFileRoute("/_app/activity")({
@@ -9,7 +10,10 @@ export const Route = createFileRoute("/_app/activity")({
 	component: Activity,
 });
 
-const STATUS_BADGE: Record<RunSummary["status"], { label: string; color: string }> = {
+const STATUS_BADGE: Record<
+	RunSummary["status"],
+	{ label: string; color: string }
+> = {
 	queued: { label: "I kø", color: "gray" },
 	running: { label: "Kører", color: "blue" },
 	ok: { label: "OK", color: "green" },
@@ -29,7 +33,9 @@ const formatTime = (iso: string) =>
 function Activity() {
 	const runs = Route.useLoaderData();
 	const router = useRouter();
-	const inProgress = runs.some((r) => r.status === "queued" || r.status === "running");
+	const inProgress = runs.some(
+		(r) => r.status === "queued" || r.status === "running",
+	);
 
 	// Poll while a run is waiting for (or being handled by) the worker.
 	useEffect(() => {
@@ -39,7 +45,11 @@ function Activity() {
 	}, [inProgress, router]);
 
 	if (runs.length === 0) {
-		return <Text c="dimmed">Ingen kørsler endnu. Den første kører i aften kl. 19.</Text>;
+		return (
+			<Text c="dimmed">
+				Ingen kørsler endnu. Den første kører i aften kl. 19.
+			</Text>
+		);
 	}
 	return (
 		<Stack gap="xs">

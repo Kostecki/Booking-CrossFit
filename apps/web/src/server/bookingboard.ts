@@ -2,8 +2,10 @@ import "@tanstack/react-start/server-only";
 import { ApiError, getClasses, login, toApiDateTime } from "@booking/core/api";
 import { getTimePartsInZone } from "@booking/core/automation";
 import { eq } from "drizzle-orm";
+
 import { db } from "#/db/index.ts";
 import { type User, users } from "#/db/schema.ts";
+
 import { decrypt, encrypt } from "./crypto.ts";
 
 // Single gym for now: CrossFit Roskilde.
@@ -30,11 +32,17 @@ async function freshToken(user: User): Promise<string> {
 			password: decrypt(user.encPassword),
 			chainId: CHAIN_ID,
 		});
-		db.update(users).set({ encToken: encrypt(token) }).where(eq(users.id, user.id)).run();
+		db.update(users)
+			.set({ encToken: encrypt(token) })
+			.where(eq(users.id, user.id))
+			.run();
 		return token;
 	} catch (error) {
 		if (!isAuthFailure(error)) throw error;
-		db.update(users).set({ status: "needs_reauth", encToken: null }).where(eq(users.id, user.id)).run();
+		db.update(users)
+			.set({ status: "needs_reauth", encToken: null })
+			.where(eq(users.id, user.id))
+			.run();
 		throw new NeedsReauthError();
 	}
 }
@@ -56,7 +64,6 @@ export async function withBookingToken<T>(
 	}
 	return fn(await freshToken(user));
 }
-
 
 /** All classes from today (gym time) through the API's ~4-week window. */
 export function getUpcomingClasses(token: string) {

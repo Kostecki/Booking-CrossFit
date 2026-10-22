@@ -2,7 +2,9 @@
 // No offline caching: the app needs the server for everything it shows.
 
 self.addEventListener("install", () => self.skipWaiting());
-self.addEventListener("activate", (event) => event.waitUntil(self.clients.claim()));
+self.addEventListener("activate", (event) =>
+	event.waitUntil(self.clients.claim()),
+);
 
 self.addEventListener("push", (event) => {
 	const payload = event.data ? event.data.json() : {};
@@ -17,11 +19,17 @@ self.addEventListener("push", (event) => {
 
 self.addEventListener("notificationclick", (event) => {
 	event.notification.close();
-	const url = new URL(event.notification.data?.url ?? "/", self.location.origin).href;
+	const url = new URL(event.notification.data?.url ?? "/", self.location.origin)
+		.href;
 	event.waitUntil(
 		(async () => {
-			const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
-			const existing = windows.find((client) => client.url.startsWith(self.location.origin));
+			const windows = await self.clients.matchAll({
+				type: "window",
+				includeUncontrolled: true,
+			});
+			const existing = windows.find((client) =>
+				client.url.startsWith(self.location.origin),
+			);
 			if (existing) {
 				await existing.focus();
 				return existing.navigate(url);

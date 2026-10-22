@@ -1,9 +1,15 @@
 import { getTimePartsInZone, weekdayForDate } from "@booking/core/automation";
 import { createServerFn } from "@tanstack/react-start";
 import { and, eq } from "drizzle-orm";
+
 import { db } from "#/db/index.ts";
 import { scheduleSlots, users } from "#/db/schema.ts";
-import { getUpcomingClasses, TIME_ZONE, withBookingToken } from "./bookingboard.ts";
+
+import {
+	getUpcomingClasses,
+	TIME_ZONE,
+	withBookingToken,
+} from "./bookingboard.ts";
 import { authMiddleware } from "./middleware.ts";
 
 export type SlotOption = {
@@ -16,8 +22,12 @@ export type SlotOption = {
 	offered: boolean;
 };
 
-const slotKey = (s: { classTitle: string; weekday: number; hour: number; minute: number }) =>
-	`${s.classTitle}|${s.weekday}|${s.hour}|${s.minute}`;
+const slotKey = (s: {
+	classTitle: string;
+	weekday: number;
+	hour: number;
+	minute: number;
+}) => `${s.classTitle}|${s.weekday}|${s.hour}|${s.minute}`;
 
 // Monday first.
 const weekdayOrder = (weekday: number) => (weekday + 6) % 7;
@@ -38,19 +48,38 @@ export const getTimetable = createServerFn({ method: "GET" })
 		for (const cls of classes) {
 			const ms = Date.parse(cls.begins);
 			if (!Number.isFinite(ms) || !cls.title) continue;
-			const { year, month, day, hour, minute } = getTimePartsInZone(ms, TIME_ZONE);
+			const { year, month, day, hour, minute } = getTimePartsInZone(
+				ms,
+				TIME_ZONE,
+			);
 			// Titles vary in case ("WOD" / "wod"); matching ignores case, so merge them.
-			const slot = { classTitle: cls.title.trim().toUpperCase(), weekday: weekdayForDate(year, month, day), hour, minute };
+			const slot = {
+				classTitle: cls.title.trim().toUpperCase(),
+				weekday: weekdayForDate(year, month, day),
+				hour,
+				minute,
+			};
 			const key = slotKey(slot);
 			if (!options.has(key)) {
-				options.set(key, { ...slot, selected: selectedKeys.has(key), offered: true });
+				options.set(key, {
+					...slot,
+					selected: selectedKeys.has(key),
+					offered: true,
+				});
 			}
 		}
 		for (const slot of selected) {
 			const key = slotKey(slot);
 			if (!options.has(key)) {
 				const { classTitle, weekday, hour, minute } = slot;
-				options.set(key, { classTitle, weekday, hour, minute, selected: true, offered: false });
+				options.set(key, {
+					classTitle,
+					weekday,
+					hour,
+					minute,
+					selected: true,
+					offered: false,
+				});
 			}
 		}
 
@@ -66,21 +95,43 @@ export const getTimetable = createServerFn({ method: "GET" })
 export const setSlot = createServerFn({ method: "POST" })
 	.middleware([authMiddleware])
 	.validator(
-		(input: { classTitle: string; weekday: number; hour: number; minute: number; selected: boolean }) => {
+		(input: {
+			classTitle: string;
+			weekday: number;
+			hour: number;
+			minute: number;
+			selected: boolean;
+		}) => {
 			const { classTitle, weekday, hour, minute, selected } = input;
 			const valid =
-				typeof classTitle === "string" && classTitle.trim() !== "" &&
-				Number.isInteger(weekday) && weekday >= 0 && weekday <= 6 &&
-				Number.isInteger(hour) && hour >= 0 && hour <= 23 &&
-				Number.isInteger(minute) && minute >= 0 && minute <= 59 &&
+				typeof classTitle === "string" &&
+				classTitle.trim() !== "" &&
+				Number.isInteger(weekday) &&
+				weekday >= 0 &&
+				weekday <= 6 &&
+				Number.isInteger(hour) &&
+				hour >= 0 &&
+				hour <= 23 &&
+				Number.isInteger(minute) &&
+				minute >= 0 &&
+				minute <= 59 &&
 				typeof selected === "boolean";
 			if (!valid) throw new Error("Invalid slot");
-			return { classTitle: classTitle.trim().toUpperCase(), weekday, hour, minute, selected };
+			return {
+				classTitle: classTitle.trim().toUpperCase(),
+				weekday,
+				hour,
+				minute,
+				selected,
+			};
 		},
 	)
 	.handler(async ({ data: { selected, ...slot }, context: { user } }) => {
 		if (selected) {
-			db.insert(scheduleSlots).values({ userId: user.id, ...slot }).onConflictDoNothing().run();
+			db.insert(scheduleSlots)
+				.values({ userId: user.id, ...slot })
+				.onConflictDoNothing()
+				.run();
 		} else {
 			db.delete(scheduleSlots)
 				.where(
@@ -98,7 +149,9 @@ export const setSlot = createServerFn({ method: "POST" })
 
 export const setPaused = createServerFn({ method: "POST" })
 	.middleware([authMiddleware])
-	.validator((input: { paused: boolean }) => ({ paused: input?.paused === true }))
+	.validator((input: { paused: boolean }) => ({
+		paused: input?.paused === true,
+	}))
 	.handler(async ({ data: { paused }, context: { user } }) => {
 		if (user.status === "needs_reauth") throw new Error("Log ind igen først");
 		db.update(users)

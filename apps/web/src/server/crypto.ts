@@ -8,7 +8,7 @@ const VERSION = "v1";
 function key(): Buffer {
 	const raw = process.env.APP_ENCRYPTION_KEY;
 	const decoded = raw ? Buffer.from(raw, "base64") : undefined;
-	if (!decoded || decoded.length !== 32) {
+	if (decoded?.length !== 32) {
 		throw new Error(
 			"APP_ENCRYPTION_KEY must be 32 bytes, base64-encoded (openssl rand -base64 32)",
 		);
@@ -33,7 +33,11 @@ export function decrypt(stored: string): string {
 		throw new Error("Unsupported ciphertext format");
 	}
 	const payload = Buffer.from(encoded, "base64");
-	const decipher = createDecipheriv("aes-256-gcm", key(), payload.subarray(0, 12));
+	const decipher = createDecipheriv(
+		"aes-256-gcm",
+		key(),
+		payload.subarray(0, 12),
+	);
 	decipher.setAuthTag(payload.subarray(12, 28));
 	return Buffer.concat([
 		decipher.update(payload.subarray(28)),

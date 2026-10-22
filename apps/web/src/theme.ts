@@ -1,4 +1,9 @@
-import { Chip, createTheme, type MantineColorsTuple, Switch } from "@mantine/core";
+import {
+	Chip,
+	createTheme,
+	type MantineColorsTuple,
+	Switch,
+} from "@mantine/core";
 
 // CrossFit Roskilde's colours: ink for buttons, links, text and icons; green for
 // accents (its lightest tint, #f6faf3, only in small spots). The page itself is a

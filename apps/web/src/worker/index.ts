@@ -5,12 +5,16 @@
 // skips the random delays. DRY_RUN=1 computes and logs without booking.
 import { Cron } from "croner";
 import { asc, eq } from "drizzle-orm";
+
 import { db } from "#/db/index.ts";
 import { runs, scheduleSlots, users } from "#/db/schema.ts";
 import { TIME_ZONE } from "#/server/bookingboard.ts";
+
 import { loadUser, runForUser } from "./runForUser.ts";
 
-const dryRun = ["1", "true", "yes"].includes((process.env.DRY_RUN ?? "").toLowerCase());
+const dryRun = ["1", "true", "yes"].includes(
+	(process.env.DRY_RUN ?? "").toLowerCase(),
+);
 const noJitter = process.argv.includes("--no-jitter");
 const QUEUE_POLL_MS = 15_000;
 const RETRY_DELAY_MS = 5 * 60_000;
@@ -23,7 +27,7 @@ function shuffle<T>(items: T[]): T[] {
 	const result = [...items];
 	for (let i = result.length - 1; i > 0; i--) {
 		const j = Math.floor(Math.random() * (i + 1));
-		[result[i], result[j]] = [result[j]!, result[i]!];
+		[result[i], result[j]] = [result[j], result[i]];
 	}
 	return result;
 }
@@ -55,16 +59,21 @@ async function runDaily(): Promise<void> {
 			.all()
 			.map((u) => u.id),
 	);
-	console.log(`Daily run for ${userIds.length} user(s)${dryRun ? " (DRY RUN)" : ""}`);
+	console.log(
+		`Daily run for ${userIds.length} user(s)${dryRun ? " (DRY RUN)" : ""}`,
+	);
 
 	const retry: number[] = [];
 	for (const [index, userId] of userIds.entries()) {
 		if (index > 0) await sleep(randomMs(30_000, 120_000));
-		if ((await runDailyForUser(userId)) === "transient_error") retry.push(userId);
+		if ((await runDailyForUser(userId)) === "transient_error")
+			retry.push(userId);
 	}
 
 	if (retry.length > 0) {
-		console.log(`Retrying ${retry.length} user(s) in ${RETRY_DELAY_MS / 60_000} min`);
+		console.log(
+			`Retrying ${retry.length} user(s) in ${RETRY_DELAY_MS / 60_000} min`,
+		);
 		await sleep(noJitter ? 0 : RETRY_DELAY_MS);
 		for (const [index, userId] of retry.entries()) {
 			if (index > 0) await sleep(randomMs(30_000, 120_000));
@@ -78,7 +87,7 @@ async function runDailyForUser(userId: number) {
 	return exclusive(userId, async () => {
 		// Re-read: the user may have paused, been flagged or deleted while we waited.
 		const user = loadUser(userId);
-		if (!user || user.status !== "active") return "ok" as const;
+		if (user?.status !== "active") return "ok" as const;
 		const run = db
 			.insert(runs)
 			.values({ userId, trigger: "daily", status: "running" })
@@ -109,7 +118,11 @@ async function drainQueue(): Promise<void> {
 			if (!user) continue; // cascade-deleted with its runs
 			if (user.status === "needs_reauth") {
 				db.update(runs)
-					.set({ status: "error", finishedAt: new Date(), error: "Log ind igen, før der kan bookes." })
+					.set({
+						status: "error",
+						finishedAt: new Date(),
+						error: "Log ind igen, før der kan bookes.",
+					})
 					.where(eq(runs.id, queued.id))
 					.run();
 				continue;
@@ -123,35 +136,46 @@ async function drainQueue(): Promise<void> {
 
 // Runs left "running" by a crash or restart will never finish.
 db.update(runs)
-	.set({ status: "error", finishedAt: new Date(), error: "Afbrudt (workeren blev genstartet)" })
+	.set({
+		status: "error",
+		finishedAt: new Date(),
+		error: "Afbrudt (workeren blev genstartet)",
+	})
 	.where(eq(runs.status, "running"))
 	.run();
 
 let dailyInProgress = false;
-const daily = new Cron("0 19 * * *", { timezone: TIME_ZONE, protect: true }, async () => {
-	dailyInProgress = true;
-	try {
-		await runDaily();
-	} catch (error) {
-		console.error("Daily run failed", error);
-	} finally {
-		dailyInProgress = false;
-	}
-});
+const daily = new Cron(
+	"0 19 * * *",
+	{ timezone: TIME_ZONE, protect: true },
+	async () => {
+		dailyInProgress = true;
+		try {
+			await runDaily();
+		} catch (error) {
+			console.error("Daily run failed", error);
+		} finally {
+			dailyInProgress = false;
+		}
+	},
+);
 const queueTimer = setInterval(() => {
 	drainQueue().catch((error) => console.error("Queue failed", error));
 }, QUEUE_POLL_MS);
 
-console.log(`Worker started. Next daily run: ${daily.nextRun()?.toISOString()}${dryRun ? " (DRY RUN)" : ""}`);
+console.log(
+	`Worker started. Next daily run: ${daily.nextRun()?.toISOString()}${dryRun ? " (DRY RUN)" : ""}`,
+);
 void drainQueue();
 if (process.argv.includes("--daily-now")) void daily.trigger();
 
 for (const signal of ["SIGINT", "SIGTERM"] as const) {
 	process.on(signal, () => {
-		console.log(`${signal}: stopping${dailyInProgress ? " (daily run interrupted)" : ""}`);
+		console.log(
+			`${signal}: stopping${dailyInProgress ? " (daily run interrupted)" : ""}`,
+		);
 		daily.stop();
 		clearInterval(queueTimer);
 		process.exit(0);
 	});
 }
-

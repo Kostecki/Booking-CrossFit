@@ -1,8 +1,10 @@
 import { getAccount, login } from "@booking/core/api";
 import { createServerFn } from "@tanstack/react-start";
 import { eq, sql } from "drizzle-orm";
+
 import { db } from "#/db/index.ts";
 import { users } from "#/db/schema.ts";
+
 import { CHAIN_ID, isAuthFailure } from "./bookingboard.ts";
 import { encrypt } from "./crypto.ts";
 import { authMiddleware } from "./middleware.ts";
@@ -28,7 +30,8 @@ export const loginWithBookingBoard = createServerFn({ method: "POST" })
 	.validator((input: { email: string; password: string }) => {
 		const email = String(input?.email ?? "").trim();
 		const password = String(input?.password ?? "");
-		if (!email || !password) throw new Error("Email og adgangskode skal udfyldes");
+		if (!email || !password)
+			throw new Error("Email og adgangskode skal udfyldes");
 		return { email, password };
 	})
 	.handler(async ({ data: { email, password } }) => {

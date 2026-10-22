@@ -11,7 +11,14 @@ type Props = ButtonProps & {
 };
 
 /** A button that asks for confirmation in a modal before running `onConfirm`. */
-export function ConfirmButton({ children, title, message, confirmLabel, onConfirm, ...buttonProps }: Props) {
+export function ConfirmButton({
+	children,
+	title,
+	message,
+	confirmLabel,
+	onConfirm,
+	...buttonProps
+}: Props) {
 	const [opened, { open, close }] = useDisclosure(false);
 	const [busy, setBusy] = useState(false);
 

@@ -16,7 +16,13 @@ export const isCancelled = (status: string) => CANCELLED_STATUSES.has(status);
 // Statuses seen with real data. Anything else is most likely the waiting list's
 // status, whose exact name hasn't been observed yet; it's logged with this prefix
 // so the app can record it (see apps/web waitlistDebug.ts). Remove once known.
-const KNOWN_STATUSES = new Set(["SignedUp", "OptedOut", "OptedOutTooLate", "OnTime", "NeverMet"]);
+const KNOWN_STATUSES = new Set([
+	"SignedUp",
+	"OptedOut",
+	"OptedOutTooLate",
+	"OnTime",
+	"NeverMet",
+]);
 export const isKnownStatus = (status: string) => KNOWN_STATUSES.has(status);
 export const WAITLIST_DEBUG = "[waitlist-debug]";
 
@@ -86,7 +92,11 @@ export function getTimePartsInZone(
 	};
 }
 
-export function weekdayForDate(year: number, month: number, day: number): number {
+export function weekdayForDate(
+	year: number,
+	month: number,
+	day: number,
+): number {
 	return new Date(year, month - 1, day).getDay();
 }
 
@@ -239,7 +249,8 @@ export async function runBookingAutomation({
 	// --- Current bookings (past + future) come straight from the account ---
 	const bookings = await getMyBookings(token, accountId);
 	for (const b of bookings) {
-		if (!isKnownStatus(b.status)) log(`${WAITLIST_DEBUG} unknown-status ${JSON.stringify(b)}`);
+		if (!isKnownStatus(b.status))
+			log(`${WAITLIST_DEBUG} unknown-status ${JSON.stringify(b)}`);
 	}
 	const held = bookings
 		.filter((b) => !CANCELLED_STATUSES.has(b.status))
@@ -296,9 +307,10 @@ export async function runBookingAutomation({
 			(c): c is { cls: ClazzMobile; ms: number; slot: ClassSlot } =>
 				c.slot !== undefined,
 		)
-		.sort((a, b) =>
-			Number(pendingRebooks.has(b.cls.id)) - Number(pendingRebooks.has(a.cls.id)) ||
-			a.ms - b.ms,
+		.sort(
+			(a, b) =>
+				Number(pendingRebooks.has(b.cls.id)) -
+					Number(pendingRebooks.has(a.cls.id)) || a.ms - b.ms,
 		);
 
 	const newlyBooked: BookedClass[] = [];
@@ -344,7 +356,9 @@ export async function runBookingAutomation({
 			continue;
 		}
 
-		log(`${rebookRequested ? "Rebooking" : "Booking"}: ${timeLabel} on ${labelEn}`);
+		log(
+			`${rebookRequested ? "Rebooking" : "Booking"}: ${timeLabel} on ${labelEn}`,
+		);
 		const cancelled = rebookRequested
 			? bookings.find(
 					(b) => b.classId === cls.id && CANCELLED_STATUSES.has(b.status),
@@ -390,7 +404,9 @@ export async function runBookingAutomation({
 
 		const onWaitingList = verified.status !== "SignedUp";
 		if (onWaitingList) {
-			log(`${WAITLIST_DEBUG} booked-not-signed-up ${JSON.stringify({ response, verified, class: cls })}`);
+			log(
+				`${WAITLIST_DEBUG} booked-not-signed-up ${JSON.stringify({ response, verified, class: cls })}`,
+			);
 		}
 
 		// Occupancy + "also attending" from the class detail (post-booking).

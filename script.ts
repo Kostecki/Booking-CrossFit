@@ -24,11 +24,11 @@ async function readClassIds(file: URL, key: string): Promise<number[]> {
 			: undefined;
 	if (
 		!Array.isArray(ids) ||
-		!ids.every(
-			(id: unknown) => Number.isSafeInteger(id) && Number(id) > 0,
-		)
+		!ids.every((id: unknown) => Number.isSafeInteger(id) && Number(id) > 0)
 	) {
-		throw new Error(`${file.pathname} must contain ${key} as positive class IDs`);
+		throw new Error(
+			`${file.pathname} must contain ${key} as positive class IDs`,
+		);
 	}
 	return ids as number[];
 }
@@ -58,7 +58,9 @@ function intEnv(name: string, fallback: number): number {
 	if (raw === undefined || raw.trim() === "") return fallback;
 	const value = Number(raw);
 	if (!Number.isInteger(value) || value < 0) {
-		console.error(`Environment variable ${name} must be a non-negative integer`);
+		console.error(
+			`Environment variable ${name} must be a non-negative integer`,
+		);
 		process.exit(1);
 	}
 	return value;
@@ -87,7 +89,9 @@ function timeEnv(
 	const hour = match ? Number(match[1]) : Number.NaN;
 	const minute = match ? Number(match[2]) : Number.NaN;
 	if (!match || hour > 23 || minute > 59) {
-		console.error(`Environment variable ${name} must be a 24-hour time (HH:MM)`);
+		console.error(
+			`Environment variable ${name} must be a 24-hour time (HH:MM)`,
+		);
 		process.exit(1);
 	}
 	return { hour, minute };

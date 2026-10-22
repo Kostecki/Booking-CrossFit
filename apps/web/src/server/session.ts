@@ -1,19 +1,29 @@
 import "@tanstack/react-start/server-only";
 import { createHash, randomBytes } from "node:crypto";
-import { deleteCookie, getCookie, setCookie } from "@tanstack/react-start/server";
+import {
+	deleteCookie,
+	getCookie,
+	setCookie,
+} from "@tanstack/react-start/server";
 import { eq } from "drizzle-orm";
+
 import { db } from "#/db/index.ts";
 import { sessions, type User, users } from "#/db/schema.ts";
 
 const COOKIE = "session";
 const MAX_AGE_MS = 180 * 24 * 60 * 60 * 1000;
 
-const hash = (value: string) => createHash("sha256").update(value).digest("hex");
+const hash = (value: string) =>
+	createHash("sha256").update(value).digest("hex");
 
 export function createSession(userId: number): void {
 	const value = randomBytes(32).toString("base64url");
 	db.insert(sessions)
-		.values({ id: hash(value), userId, expiresAt: new Date(Date.now() + MAX_AGE_MS) })
+		.values({
+			id: hash(value),
+			userId,
+			expiresAt: new Date(Date.now() + MAX_AGE_MS),
+		})
 		.run();
 	setCookie(COOKIE, value, {
 		httpOnly: true,
@@ -45,6 +55,9 @@ export function requireUser(): User {
 
 export function destroySession(): void {
 	const value = getCookie(COOKIE);
-	if (value) db.delete(sessions).where(eq(sessions.id, hash(value))).run();
+	if (value)
+		db.delete(sessions)
+			.where(eq(sessions.id, hash(value)))
+			.run();
 	deleteCookie(COOKIE, { path: "/" });
 }

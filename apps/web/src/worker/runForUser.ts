@@ -6,8 +6,16 @@ import {
 	runBookingAutomation,
 } from "@booking/core/automation";
 import { and, desc, eq, inArray, ne } from "drizzle-orm";
+
 import { db } from "#/db/index.ts";
-import { rebookRequests, runs, scheduleSlots, skips, type User, users } from "#/db/schema.ts";
+import {
+	rebookRequests,
+	runs,
+	scheduleSlots,
+	skips,
+	type User,
+	users,
+} from "#/db/schema.ts";
 import {
 	MAX_TOTAL_SESSIONS,
 	NeedsReauthError,
@@ -28,7 +36,11 @@ const isTransient = (error: unknown) =>
  * Run the booking automation for one user and record it on the given `runs` row.
  * Never throws: failures are stored on the run and reported through the outcome.
  */
-export async function runForUser(user: User, runId: number, dryRun: boolean): Promise<RunOutcome> {
+export async function runForUser(
+	user: User,
+	runId: number,
+	dryRun: boolean,
+): Promise<RunOutcome> {
 	const previous = db
 		.select({ status: runs.status })
 		.from(runs)
@@ -40,13 +52,21 @@ export async function runForUser(user: User, runId: number, dryRun: boolean): Pr
 		lines.push(line);
 		console.log(`[user ${user.id}] ${line}`);
 		// "[waitlist-debug] <kind> <json>" lines from the core also go to the debug file.
-		const debug = line.match(/^\[waitlist-debug\] (\S+) (.*)$/s);
-		if (debug) recordWaitlistDebug(debug[1]!, user.id, JSON.parse(debug[2]!), line);
+		const [, kind, json] = line.match(/^\[waitlist-debug\] (\S+) (.*)$/s) ?? [];
+		if (kind && json)
+			recordWaitlistDebug(kind, user.id, JSON.parse(json), line);
 	};
-	db.update(runs).set({ status: "running", startedAt: new Date() }).where(eq(runs.id, runId)).run();
+	db.update(runs)
+		.set({ status: "running", startedAt: new Date() })
+		.where(eq(runs.id, runId))
+		.run();
 
 	try {
-		const slots = db.select().from(scheduleSlots).where(eq(scheduleSlots.userId, user.id)).all();
+		const slots = db
+			.select()
+			.from(scheduleSlots)
+			.where(eq(scheduleSlots.userId, user.id))
+			.all();
 		const skipClassIds = db
 			.select({ classId: skips.classId })
 			.from(skips)
@@ -56,7 +76,12 @@ export async function runForUser(user: User, runId: number, dryRun: boolean): Pr
 		const pendingRebookClassIds = db
 			.select({ classId: rebookRequests.classId })
 			.from(rebookRequests)
-			.where(and(eq(rebookRequests.userId, user.id), eq(rebookRequests.status, "pending")))
+			.where(
+				and(
+					eq(rebookRequests.userId, user.id),
+					eq(rebookRequests.status, "pending"),
+				),
+			)
 			.all()
 			.map((r) => r.classId);
 
@@ -74,17 +99,31 @@ export async function runForUser(user: User, runId: number, dryRun: boolean): Pr
 				log,
 			});
 			if (dryRun) return;
-			const completed = await findCompletedRebooks(token, user.bbAccountId, pendingRebookClassIds);
+			const completed = await findCompletedRebooks(
+				token,
+				user.bbAccountId,
+				pendingRebookClassIds,
+			);
 			if (completed.length > 0) {
 				db.update(rebookRequests)
 					.set({ status: "done" })
-					.where(and(eq(rebookRequests.userId, user.id), inArray(rebookRequests.classId, completed)))
+					.where(
+						and(
+							eq(rebookRequests.userId, user.id),
+							inArray(rebookRequests.classId, completed),
+						),
+					)
 					.run();
 			}
 		});
 
 		db.update(runs)
-			.set({ status: "ok", finishedAt: new Date(), bookedJson: JSON.stringify(booked), log: lines.join("\n") })
+			.set({
+				status: "ok",
+				finishedAt: new Date(),
+				bookedJson: JSON.stringify(booked),
+				log: lines.join("\n"),
+			})
 			.where(eq(runs.id, runId))
 			.run();
 
@@ -99,8 +138,16 @@ export async function runForUser(user: User, runId: number, dryRun: boolean): Pr
 		return "ok";
 	} catch (error) {
 		// A rejected booking may be the gym's 5-booking limit counting waiting-list spots.
-		if (error instanceof ApiError && error.status >= 400 && error.status < 500 && error.status !== 401) {
-			recordWaitlistDebug("booking-rejected", user.id, { status: error.status, message: error.message });
+		if (
+			error instanceof ApiError &&
+			error.status >= 400 &&
+			error.status < 500 &&
+			error.status !== 401
+		) {
+			recordWaitlistDebug("booking-rejected", user.id, {
+				status: error.status,
+				message: error.message,
+			});
 		}
 		const reauth = error instanceof NeedsReauthError;
 		const message = reauth
@@ -110,7 +157,12 @@ export async function runForUser(user: User, runId: number, dryRun: boolean): Pr
 				: String(error);
 		log(`Error: ${message}`);
 		db.update(runs)
-			.set({ status: "error", finishedAt: new Date(), error: message, log: lines.join("\n") })
+			.set({
+				status: "error",
+				finishedAt: new Date(),
+				error: message,
+				log: lines.join("\n"),
+			})
 			.where(eq(runs.id, runId))
 			.run();
 
@@ -119,9 +171,17 @@ export async function runForUser(user: User, runId: number, dryRun: boolean): Pr
 		// problem doesn't notify every day.
 		if (!dryRun) {
 			if (reauth && user.status !== "needs_reauth") {
-				await notifyUser(user.id, { title: "Log ind igen", body: message, url: "/login" });
+				await notifyUser(user.id, {
+					title: "Log ind igen",
+					body: message,
+					url: "/login",
+				});
 			} else if (!reauth && previous?.status !== "error") {
-				await notifyUser(user.id, { title: "Booking fejlede", body: message, url: "/activity" });
+				await notifyUser(user.id, {
+					title: "Booking fejlede",
+					body: message,
+					url: "/activity",
+				});
 			}
 		}
 		return isTransient(error) ? "transient_error" : "error";

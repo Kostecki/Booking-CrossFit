@@ -1,23 +1,32 @@
 import { createServerFn } from "@tanstack/react-start";
 import { and, eq } from "drizzle-orm";
+
 import { db } from "#/db/index.ts";
 import { pushSubscriptions } from "#/db/schema.ts";
+
 import { authMiddleware } from "./middleware.ts";
-import { notifyUser, pushConfigured, vapidPublicKey } from "./notify.ts";
+import { notifyUser, vapidPublicKey } from "./notify.ts";
 
 export const getPushConfig = createServerFn({ method: "GET" })
 	.middleware([authMiddleware])
-	.handler(async () => ({ publicKey: pushConfigured ? vapidPublicKey! : null }));
+	.handler(async () => ({
+		publicKey: vapidPublicKey ?? null,
+	}));
 
-type SubscriptionInput = { endpoint: string; keys: { p256dh: string; auth: string } };
+type SubscriptionInput = {
+	endpoint: string;
+	keys: { p256dh: string; auth: string };
+};
 
 export const savePushSubscription = createServerFn({ method: "POST" })
 	.middleware([authMiddleware])
 	.validator((input: SubscriptionInput) => {
 		const { endpoint, keys } = input ?? {};
 		if (
-			typeof endpoint !== "string" || !endpoint.startsWith("https://") ||
-			typeof keys?.p256dh !== "string" || typeof keys?.auth !== "string"
+			typeof endpoint !== "string" ||
+			!endpoint.startsWith("https://") ||
+			typeof keys?.p256dh !== "string" ||
+			typeof keys?.auth !== "string"
 		) {
 			throw new Error("Invalid push subscription");
 		}
@@ -36,10 +45,17 @@ export const savePushSubscription = createServerFn({ method: "POST" })
 
 export const deletePushSubscription = createServerFn({ method: "POST" })
 	.middleware([authMiddleware])
-	.validator((input: { endpoint: string }) => ({ endpoint: String(input?.endpoint ?? "") }))
+	.validator((input: { endpoint: string }) => ({
+		endpoint: String(input?.endpoint ?? ""),
+	}))
 	.handler(async ({ data: { endpoint }, context: { user } }) => {
 		db.delete(pushSubscriptions)
-			.where(and(eq(pushSubscriptions.userId, user.id), eq(pushSubscriptions.endpoint, endpoint)))
+			.where(
+				and(
+					eq(pushSubscriptions.userId, user.id),
+					eq(pushSubscriptions.endpoint, endpoint),
+				),
+			)
 			.run();
 	});
 

@@ -2,6 +2,7 @@ import "@tanstack/react-start/server-only";
 import { appendFileSync } from "node:fs";
 import { join } from "node:path";
 import { WAITLIST_DEBUG } from "@booking/core/automation";
+
 import { dataDir } from "#/db/index.ts";
 
 // Temporary: the waiting list's real behaviour hasn't been observed yet. Anything
@@ -21,7 +22,12 @@ export function recordWaitlistDebug(
 		if (seen.has(dedupeKey)) return;
 		seen.add(dedupeKey);
 	}
-	const entry = JSON.stringify({ at: new Date().toISOString(), kind, userId, data });
+	const entry = JSON.stringify({
+		at: new Date().toISOString(),
+		kind,
+		userId,
+		data,
+	});
 	console.log(`${WAITLIST_DEBUG} ${entry}`);
 	try {
 		appendFileSync(file, `${entry}\n`);

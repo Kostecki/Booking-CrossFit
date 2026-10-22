@@ -19,6 +19,7 @@ import { IconPlus, IconX } from "@tabler/icons-react";
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { Fragment, useMemo, useState } from "react";
+
 import { notifyError } from "#/components/notify.ts";
 import {
 	getTimetable,
@@ -33,10 +34,19 @@ export const Route = createFileRoute("/_app/schedule")({
 	component: Schedule,
 });
 
-const WEEKDAYS = ["Søndag", "Mandag", "Tirsdag", "Onsdag", "Torsdag", "Fredag", "Lørdag"];
+const WEEKDAYS = [
+	"Søndag",
+	"Mandag",
+	"Tirsdag",
+	"Onsdag",
+	"Torsdag",
+	"Fredag",
+	"Lørdag",
+];
 const pad = (n: number) => String(n).padStart(2, "0");
 const timeOf = (o: SlotOption) => `${pad(o.hour)}:${pad(o.minute)}`;
-const keyOf = (o: SlotOption) => `${o.classTitle}|${o.weekday}|${o.hour}|${o.minute}`;
+const keyOf = (o: SlotOption) =>
+	`${o.classTitle}|${o.weekday}|${o.hour}|${o.minute}`;
 
 function Schedule() {
 	const { user } = Route.useRouteContext();
@@ -53,11 +63,17 @@ function Schedule() {
 
 	async function toggle(option: SlotOption, value: boolean) {
 		const update = (to: boolean) =>
-			setOptions((all) => all.map((o) => (keyOf(o) === keyOf(option) ? { ...o, selected: to } : o)));
+			setOptions((all) =>
+				all.map((o) =>
+					keyOf(o) === keyOf(option) ? { ...o, selected: to } : o,
+				),
+			);
 		update(value);
 		try {
 			const { classTitle, weekday, hour, minute } = option;
-			await saveSlot({ data: { classTitle, weekday, hour, minute, selected: value } });
+			await saveSlot({
+				data: { classTitle, weekday, hour, minute, selected: value },
+			});
 		} catch (error) {
 			update(!value);
 			notifyError(error);
@@ -74,7 +90,9 @@ function Schedule() {
 						disabled={user.status === "needs_reauth"}
 						onChange={async (event) => {
 							try {
-								await savePaused({ data: { paused: !event.currentTarget.checked } });
+								await savePaused({
+									data: { paused: !event.currentTarget.checked },
+								});
 								await router.invalidate();
 							} catch (error) {
 								notifyError(error);
@@ -100,7 +118,8 @@ function Schedule() {
 							<Group justify="space-between" wrap="nowrap" px="md" py="sm">
 								<Stack gap={0}>
 									<Text>
-										{WEEKDAYS[option.weekday]} · {timeOf(option)} · {option.classTitle}
+										{WEEKDAYS[option.weekday]} · {timeOf(option)} ·{" "}
+										{option.classTitle}
 									</Text>
 									{!option.offered && (
 										<Text size="xs" c="dimmed">
@@ -132,7 +151,10 @@ function Schedule() {
 				<List size="sm" c="dimmed" spacing={2}>
 					<List.Item>De tidligste hold bookes først.</List.Item>
 					<List.Item>Er et hold fuldt, kommer du på venteliste.</List.Item>
-					<List.Item>Hold du selv melder fra eller springer over, bookes ikke igen automatisk.</List.Item>
+					<List.Item>
+						Hold du selv melder fra eller springer over, bookes ikke igen
+						automatisk.
+					</List.Item>
 				</List>
 			</Stack>
 
@@ -158,13 +180,18 @@ function AddClassesDrawer({
 	onToggle: (option: SlotOption, selected: boolean) => void;
 }) {
 	const titles = useMemo(
-		() => [...new Set(options.map((o) => o.classTitle))].sort((a, b) => a.localeCompare(b, "da")),
+		() =>
+			[...new Set(options.map((o) => o.classTitle))].sort((a, b) =>
+				a.localeCompare(b, "da"),
+			),
 		[options],
 	);
 	// Start on the type the user picks most, else WOD.
 	const [title, setTitle] = useState(() => {
 		const counts = new Map<string, number>();
-		for (const o of options) if (o.selected) counts.set(o.classTitle, (counts.get(o.classTitle) ?? 0) + 1);
+		for (const o of options)
+			if (o.selected)
+				counts.set(o.classTitle, (counts.get(o.classTitle) ?? 0) + 1);
 		const mostUsed = [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
 		return mostUsed ?? (titles.includes("WOD") ? "WOD" : titles[0]);
 	});
@@ -177,7 +204,13 @@ function AddClassesDrawer({
 	}
 
 	return (
-		<Drawer opened={opened} onClose={onClose} position="bottom" size="auto" title="Tilføj hold">
+		<Drawer
+			opened={opened}
+			onClose={onClose}
+			position="bottom"
+			size="auto"
+			title="Tilføj hold"
+		>
 			<Stack>
 				<Select
 					label="Holdtype"
@@ -207,7 +240,9 @@ function AddClassesDrawer({
 							</Group>
 						</Group>
 					))}
-					{byWeekday.size === 0 && <Text c="dimmed">Ingen tider for {title} lige nu.</Text>}
+					{byWeekday.size === 0 && (
+						<Text c="dimmed">Ingen tider for {title} lige nu.</Text>
+					)}
 				</Stack>
 				<Button onClick={onClose}>Færdig</Button>
 			</Stack>

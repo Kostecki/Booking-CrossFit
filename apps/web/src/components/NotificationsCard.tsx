@@ -1,11 +1,22 @@
-import { Alert, Button, Card, Group, List, Stack, Text, Title } from "@mantine/core";
+import {
+	Alert,
+	Button,
+	Card,
+	Group,
+	List,
+	Stack,
+	Text,
+	Title,
+} from "@mantine/core";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
+
 import {
 	deletePushSubscription,
 	savePushSubscription,
 	sendTestNotification,
 } from "#/server/push.functions.ts";
+
 import { notifyError, notifyInfo } from "./notify.ts";
 
 type State =
@@ -26,7 +37,9 @@ const isStandalone = () =>
 	(navigator as Navigator & { standalone?: boolean }).standalone === true;
 
 function base64UrlToBytes(value: string): Uint8Array<ArrayBuffer> {
-	const base64 = (value + "=".repeat((4 - (value.length % 4)) % 4)).replace(/-/g, "+").replace(/_/g, "/");
+	const base64 = (value + "=".repeat((4 - (value.length % 4)) % 4))
+		.replace(/-/g, "+")
+		.replace(/_/g, "/");
 	return Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
 }
 
@@ -43,7 +56,10 @@ export function NotificationsCard({ publicKey }: { publicKey: string | null }) {
 	const [busy, setBusy] = useState(false);
 
 	useEffect(() => {
-		const supported = "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
+		const supported =
+			"serviceWorker" in navigator &&
+			"PushManager" in window &&
+			"Notification" in window;
 		if (!supported) {
 			setState(isIos() && !isStandalone() ? "ios-install" : "unsupported");
 		} else if (!publicKey) {
@@ -51,7 +67,10 @@ export function NotificationsCard({ publicKey }: { publicKey: string | null }) {
 		} else if (Notification.permission === "denied") {
 			setState("denied");
 		} else {
-			currentSubscription().then((sub) => setState(sub ? "on" : "off"), () => setState("off"));
+			currentSubscription().then(
+				(sub) => setState(sub ? "on" : "off"),
+				() => setState("off"),
+			);
 		}
 	}, [publicKey]);
 
@@ -69,6 +88,7 @@ export function NotificationsCard({ publicKey }: { publicKey: string | null }) {
 	// Must run directly from a tap: iOS refuses permission prompts that aren't user-initiated.
 	const enable = () =>
 		withBusy(async () => {
+			if (!publicKey) return;
 			const permission = await Notification.requestPermission();
 			if (permission !== "granted") {
 				setState(permission === "denied" ? "denied" : "off");
@@ -77,10 +97,15 @@ export function NotificationsCard({ publicKey }: { publicKey: string | null }) {
 			const registration = await navigator.serviceWorker.ready;
 			const subscription = await registration.pushManager.subscribe({
 				userVisibleOnly: true,
-				applicationServerKey: base64UrlToBytes(publicKey!),
+				applicationServerKey: base64UrlToBytes(publicKey),
 			});
 			const { endpoint, keys } = subscription.toJSON();
-			await save({ data: { endpoint: endpoint!, keys: { p256dh: keys!.p256dh!, auth: keys!.auth! } } });
+			if (!endpoint || !keys?.p256dh || !keys.auth) {
+				throw new Error("Browseren returnerede et ufuldstændigt abonnement.");
+			}
+			await save({
+				data: { endpoint, keys: { p256dh: keys.p256dh, auth: keys.auth } },
+			});
 			setState("on");
 		});
 
@@ -97,7 +122,11 @@ export function NotificationsCard({ publicKey }: { publicKey: string | null }) {
 	const test = () =>
 		withBusy(async () => {
 			const { delivered } = await sendTest();
-			notifyInfo(delivered > 0 ? "Testnotifikation sendt." : "Ingen enheder modtog den. Slå notifikationer til igen.");
+			notifyInfo(
+				delivered > 0
+					? "Testnotifikation sendt."
+					: "Ingen enheder modtog den. Slå notifikationer til igen.",
+			);
 		});
 
 	return (
@@ -105,14 +134,17 @@ export function NotificationsCard({ publicKey }: { publicKey: string | null }) {
 			<Stack gap="xs">
 				<Title order={5}>Notifikationer</Title>
 				<Text size="sm" c="dimmed">
-					Få besked, når der er booket hold til dig, eller hvis dit login holder op med at virke.
+					Få besked, når der er booket hold til dig, eller hvis dit login holder
+					op med at virke.
 				</Text>
 				{state === "ios-install" && (
 					<Alert color="blue" title="Føj appen til hjemmeskærmen">
 						<List size="sm" type="ordered">
 							<List.Item>Tryk på Del-knappen i Safari</List.Item>
 							<List.Item>Vælg "Føj til hjemmeskærm"</List.Item>
-							<List.Item>Åbn appen fra hjemmeskærmen og slå notifikationer til her</List.Item>
+							<List.Item>
+								Åbn appen fra hjemmeskærmen og slå notifikationer til her
+							</List.Item>
 						</List>
 					</Alert>
 				)}
@@ -120,12 +152,14 @@ export function NotificationsCard({ publicKey }: { publicKey: string | null }) {
 					<Text size="sm">Din browser understøtter ikke notifikationer.</Text>
 				)}
 				{state === "not-configured" && (
-					<Text size="sm">Notifikationer er ikke sat op på serveren endnu.</Text>
+					<Text size="sm">
+						Notifikationer er ikke sat op på serveren endnu.
+					</Text>
 				)}
 				{state === "denied" && (
 					<Text size="sm">
-						Notifikationer er blokeret. Tillad dem for denne side i browserens eller telefonens
-						indstillinger.
+						Notifikationer er blokeret. Tillad dem for denne side i browserens
+						eller telefonens indstillinger.
 					</Text>
 				)}
 				{state === "off" && (
@@ -140,7 +174,12 @@ export function NotificationsCard({ publicKey }: { publicKey: string | null }) {
 							<Button variant="outline" onClick={test} loading={busy}>
 								Send testnotifikation
 							</Button>
-							<Button variant="subtle" color="gray" onClick={disable} disabled={busy}>
+							<Button
+								variant="subtle"
+								color="gray"
+								onClick={disable}
+								disabled={busy}
+							>
 								Slå fra
 							</Button>
 						</Group>

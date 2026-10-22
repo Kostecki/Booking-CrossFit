@@ -11,11 +11,13 @@ import {
 import { createFileRoute, redirect, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { type FormEvent, useState } from "react";
+
 import { loginWithBookingBoard } from "#/server/auth.functions.ts";
 
 export const Route = createFileRoute("/login")({
 	beforeLoad: ({ context }) => {
-		if (context.user && context.user.status !== "needs_reauth") throw redirect({ to: "/" });
+		if (context.user && context.user.status !== "needs_reauth")
+			throw redirect({ to: "/" });
 	},
 	component: Login,
 });
@@ -61,8 +63,19 @@ function Login() {
 						adgangskode gemmes krypteret, så dine hold kan bookes automatisk.
 					</Text>
 					{error && <Alert color="red">{error}</Alert>}
-					<TextInput name="email" type="email" label="Email" autoComplete="username" required />
-					<PasswordInput name="password" label="Adgangskode" autoComplete="current-password" required />
+					<TextInput
+						name="email"
+						type="email"
+						label="Email"
+						autoComplete="username"
+						required
+					/>
+					<PasswordInput
+						name="password"
+						label="Adgangskode"
+						autoComplete="current-password"
+						required
+					/>
 					<Button type="submit" loading={submitting}>
 						Log ind
 					</Button>

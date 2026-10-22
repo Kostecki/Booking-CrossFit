@@ -1,11 +1,24 @@
-import { Alert, AppShell, Group, Stack, Text, Title, UnstyledButton } from "@mantine/core";
+import {
+	Alert,
+	AppShell,
+	Group,
+	Stack,
+	Text,
+	Title,
+	UnstyledButton,
+} from "@mantine/core";
 import {
 	IconActivity,
 	IconCalendarEvent,
 	IconListCheck,
 	IconSettings,
 } from "@tabler/icons-react";
-import { createFileRoute, Link, Outlet, redirect } from "@tanstack/react-router";
+import {
+	createFileRoute,
+	Link,
+	Outlet,
+	redirect,
+} from "@tanstack/react-router";
 
 // Everything under this layout requires a logged-in user.
 export const Route = createFileRoute("/_app")({
@@ -30,8 +43,15 @@ const tabs = [
 function Layout() {
 	const { user } = Route.useRouteContext();
 	return (
-		<AppShell header={{ height: 52 }} footer={{ height: TAB_BAR_HEIGHT }} padding="md">
-			<AppShell.Header px="md" style={{ paddingTop: "env(safe-area-inset-top)" }}>
+		<AppShell
+			header={{ height: 52 }}
+			footer={{ height: TAB_BAR_HEIGHT }}
+			padding="md"
+		>
+			<AppShell.Header
+				px="md"
+				style={{ paddingTop: "env(safe-area-inset-top)" }}
+			>
 				<Group h={52}>
 					<Title order={4}>CrossFit Booking</Title>
 				</Group>

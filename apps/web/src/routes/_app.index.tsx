@@ -15,6 +15,7 @@ import { IconPlayerPlay } from "@tabler/icons-react";
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useRef, useState } from "react";
+
 import { ConfirmButton } from "#/components/ConfirmButton.tsx";
 import { notifyError, notifyInfo } from "#/components/notify.ts";
 import { requestRun } from "#/server/runs.functions.ts";
@@ -75,7 +76,8 @@ function Upcoming() {
 				<Stack gap="sm" align="flex-start">
 					<Title order={4}>Vælg dine faste hold</Title>
 					<Text size="sm" c="dimmed">
-						Vælg hvilke hold du vil have booket hver uge, så bookes de automatisk.
+						Vælg hvilke hold du vil have booket hver uge, så bookes de
+						automatisk.
 					</Text>
 					<Button component={Link} to="/schedule">
 						Vælg hold

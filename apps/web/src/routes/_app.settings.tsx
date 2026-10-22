@@ -1,6 +1,7 @@
 import { Button, Card, Stack, Text, Title } from "@mantine/core";
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
+
 import { ConfirmButton } from "#/components/ConfirmButton.tsx";
 import { NotificationsCard } from "#/components/NotificationsCard.tsx";
 import { deleteAccount, logout } from "#/server/auth.functions.ts";
@@ -45,8 +46,8 @@ function Settings() {
 				<Stack gap="xs">
 					<Title order={5}>Slet konto</Title>
 					<Text size="sm" c="dimmed">
-						Sletter dit skema, din historik og din gemte adgangskode. Dine eksisterende
-						bookinger i BookingBoard bliver ikke rørt.
+						Sletter dit skema, din historik og din gemte adgangskode. Dine
+						eksisterende bookinger i BookingBoard bliver ikke rørt.
 					</Text>
 					<ConfirmButton
 						color="red"
