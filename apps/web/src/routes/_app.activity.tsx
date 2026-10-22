@@ -46,8 +46,8 @@ function Activity() {
 
 	if (runs.length === 0) {
 		return (
-			<Text c="dimmed">
-				Ingen kørsler endnu. Den første kører i aften kl. 19.
+			<Text c="dimmed" ta="center" mt="md">
+				Ingen bookinger foretaget
 			</Text>
 		);
 	}
