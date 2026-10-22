@@ -1,4 +1,4 @@
-import { Alert, AppShell, Group, Text, Title, UnstyledButton } from "@mantine/core";
+import { Alert, AppShell, Group, Stack, Text, Title, UnstyledButton } from "@mantine/core";
 import {
 	IconActivity,
 	IconCalendarEvent,
@@ -16,9 +16,13 @@ export const Route = createFileRoute("/_app")({
 	component: Layout,
 });
 
+// The tab bar's own height plus the iPhone home-indicator area, so the safe-area
+// padding doesn't squeeze the icons and labels.
+const TAB_BAR_HEIGHT = "calc(56px + env(safe-area-inset-bottom))";
+
 const tabs = [
-	{ to: "/", label: "Kommende", icon: IconCalendarEvent },
-	{ to: "/schedule", label: "Skema", icon: IconListCheck },
+	{ to: "/", label: "Bookinger", icon: IconCalendarEvent },
+	{ to: "/schedule", label: "Auto-booking", icon: IconListCheck },
 	{ to: "/activity", label: "Aktivitet", icon: IconActivity },
 	{ to: "/settings", label: "Indstillinger", icon: IconSettings },
 ] as const;
@@ -26,7 +30,7 @@ const tabs = [
 function Layout() {
 	const { user } = Route.useRouteContext();
 	return (
-		<AppShell header={{ height: 52 }} footer={{ height: 64 }} padding="md">
+		<AppShell header={{ height: 52 }} footer={{ height: TAB_BAR_HEIGHT }} padding="md">
 			<AppShell.Header px="md" style={{ paddingTop: "env(safe-area-inset-top)" }}>
 				<Group h={52}>
 					<Title order={4}>CrossFit Booking</Title>
@@ -42,21 +46,26 @@ function Layout() {
 				<Outlet />
 			</AppShell.Main>
 			<AppShell.Footer style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
-				<Group grow h={64} gap={0}>
+				{/* Fixed-width tabs, centred, rather than stretched across the whole bar. */}
+				<Group justify="center" h={56} gap="xs" wrap="nowrap">
 					{tabs.map(({ to, label, icon: Icon }) => (
 						<UnstyledButton
 							key={to}
 							component={Link}
 							to={to}
 							activeOptions={{ exact: true }}
-							style={{ textAlign: "center", color: "var(--mantine-color-dimmed)" }}
+							h="100%"
+							w={82}
+							style={{ color: "var(--mantine-color-dimmed)" }}
 							// A darker shade of the brand green: #61a928 is too faint for small text on white.
-							activeProps={{ style: { textAlign: "center", color: "var(--mantine-color-green-8)" } }}
+							activeProps={{ style: { color: "var(--mantine-color-green-8)" } }}
 						>
-							<Icon size={22} style={{ display: "block", margin: "0 auto" }} />
-							<Text size="xs" inherit c="inherit">
-								{label}
-							</Text>
+							<Stack gap={2} align="center" justify="center" h="100%">
+								<Icon size={22} stroke={1.75} />
+								<Text fz={11} fw={500} lh={1.2} c="inherit">
+									{label}
+								</Text>
+							</Stack>
 						</UnstyledButton>
 					))}
 				</Group>
