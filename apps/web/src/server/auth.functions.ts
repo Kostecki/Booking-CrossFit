@@ -13,6 +13,7 @@ import { createSession, destroySession, getSessionUser } from "./session.ts";
 export type CurrentUser = {
 	id: number;
 	fullName: string;
+	profileImageUrl: string | null;
 	email: string;
 	status: "active" | "paused" | "needs_reauth";
 };
@@ -21,8 +22,8 @@ export const getCurrentUser = createServerFn({ method: "GET" }).handler(
 	async (): Promise<CurrentUser | null> => {
 		const user = getSessionUser();
 		if (!user) return null;
-		const { id, fullName, email, status } = user;
-		return { id, fullName, email, status };
+		const { id, fullName, profileImageUrl, email, status } = user;
+		return { id, fullName, profileImageUrl, email, status };
 	},
 );
 
@@ -53,6 +54,7 @@ export const loginWithBookingBoard = createServerFn({ method: "POST" })
 				bbAccountId: account.id,
 				email,
 				fullName: account.fullName,
+				profileImageUrl: account.profileImageUrl || null,
 				encPassword: encrypt(password),
 				encToken: encrypt(token),
 			})
@@ -61,6 +63,7 @@ export const loginWithBookingBoard = createServerFn({ method: "POST" })
 				set: {
 					email,
 					fullName: account.fullName,
+					profileImageUrl: account.profileImageUrl || null,
 					encPassword: encrypt(password),
 					encToken: encrypt(token),
 					status: sql`case when ${users.status} = 'paused' then 'paused' else 'active' end`,

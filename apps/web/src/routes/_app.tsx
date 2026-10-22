@@ -1,6 +1,7 @@
 import {
 	Alert,
 	AppShell,
+	Avatar,
 	Group,
 	Stack,
 	Text,
@@ -52,8 +53,30 @@ function Layout() {
 				px="md"
 				style={{ paddingTop: "env(safe-area-inset-top)" }}
 			>
-				<Group h={52}>
-					<Title order={4}>CrossFit Booking</Title>
+				<Group h={52} justify="space-between" wrap="nowrap">
+					<Title order={4} style={{ flexShrink: 0 }}>
+						CrossFit Booking
+					</Title>
+					<UnstyledButton
+						component={Link}
+						to="/settings"
+						miw={0}
+						aria-label="Indstillinger"
+					>
+						<Group gap="xs" wrap="nowrap">
+							<Text size="sm" fw={500} truncate>
+								{user.fullName}
+							</Text>
+							{/* Without a picture, Avatar shows the name's initials. */}
+							<Avatar
+								src={user.profileImageUrl}
+								name={user.fullName}
+								alt=""
+								size={32}
+								color="initials"
+							/>
+						</Group>
+					</UnstyledButton>
 				</Group>
 			</AppShell.Header>
 			<AppShell.Main maw={640} mx="auto">

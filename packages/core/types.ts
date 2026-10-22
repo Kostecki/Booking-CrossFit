@@ -13,6 +13,7 @@ export type Account = {
 	email: string;
 	firstName?: string;
 	lastName?: string;
+	profileImageUrl?: string; // public CDN image
 };
 
 export type Instructor = {

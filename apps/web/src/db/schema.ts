@@ -22,6 +22,8 @@ export const users = sqliteTable("users", {
 	bbAccountId: integer("bb_account_id").notNull().unique(),
 	email: text("email").notNull(),
 	fullName: text("full_name").notNull(),
+	// BookingBoard profile picture (public CDN URL), refreshed on login.
+	profileImageUrl: text("profile_image_url"),
 	// AES-GCM ciphertexts, see server/crypto.ts.
 	encPassword: text("enc_password").notNull(),
 	encToken: text("enc_token"),
