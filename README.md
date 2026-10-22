@@ -42,10 +42,11 @@ Passwords and tokens are stored encrypted (AES-256-GCM) so the worker can log in
 ```sh
 pnpm install
 cp apps/web/.env.example apps/web/.env    # then fill in the values
-pnpm --filter @booking/web dev            # http://localhost:3000
-pnpm --filter @booking/web worker         # the scheduler + run queue
+pnpm dev                                  # web (http://localhost:3000) + worker
 pnpm test                                 # core unit tests
 ```
+
+`pnpm dev` runs the worker as a dry run, so a local dev setup never books for real next to the production worker. Use `DRY_RUN= pnpm dev` for real runs, or `pnpm --filter @booking/web worker` to run only the worker.
 
 Worker flags for testing:
 - `DRY_RUN=1` logs without booking.

@@ -3,6 +3,7 @@
 	"version": "1.0.0",
 	"type": "module",
 	"scripts": {
+		"dev": "pnpm --filter @booking/web dev",
 		"start": "node --env-file=.env script.ts",
 		"test": "pnpm --filter @booking/core test",
 		"lint": "biome check",
