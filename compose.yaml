@@ -1,0 +1,39 @@
+# Web app + booking worker sharing one SQLite database on the `data` volume.
+# Configure in apps/web/.env (see apps/web/.env.example), or point ENV_FILE elsewhere. Put the web service behind an
+# HTTPS reverse proxy: service workers and Web Push only work over HTTPS.
+services:
+  web:
+    build: .
+    image: booking-crossfit
+    env_file: ${ENV_FILE:-apps/web/.env}
+    environment:
+      DATA_DIR: /data
+    volumes:
+      - data:/data
+    ports:
+      - "3000:3000"
+    init: true
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/login').then(r => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+
+  worker:
+    image: booking-crossfit
+    command: ["node", "src/worker/index.ts"]
+    env_file: ${ENV_FILE:-apps/web/.env}
+    environment:
+      DATA_DIR: /data
+    volumes:
+      - data:/data
+    init: true
+    restart: unless-stopped
+    # Let the web service run the database migrations first.
+    depends_on:
+      web:
+        condition: service_healthy
+
+volumes:
+  data:
