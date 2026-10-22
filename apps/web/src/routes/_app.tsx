@@ -43,7 +43,8 @@ function Layout() {
 							to={to}
 							activeOptions={{ exact: true }}
 							style={{ textAlign: "center", color: "var(--mantine-color-dimmed)" }}
-							activeProps={{ style: { textAlign: "center", color: "var(--mantine-primary-color-filled)" } }}
+							// A darker shade of the brand green: #61a928 is too faint for small text on white.
+							activeProps={{ style: { textAlign: "center", color: "var(--mantine-color-green-8)" } }}
 						>
 							<Icon size={22} style={{ display: "block", margin: "0 auto" }} />
 							<Text size="xs" inherit c="inherit">
