@@ -49,7 +49,7 @@ export const sendTestNotification = createServerFn({ method: "POST" })
 		const delivered = await notifyUser(user.id, {
 			title: "Det virker 💪",
 			body: "Du får besked her, når der er booket hold til dig.",
-			url: "/kommende",
+			url: "/",
 		});
 		return { delivered };
 	});

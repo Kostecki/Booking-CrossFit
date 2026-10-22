@@ -15,6 +15,7 @@ import { Route as AppIndexRouteImport } from './routes/_app.index'
 import { Route as AppAktivitetRouteImport } from './routes/_app.aktivitet'
 import { Route as AppIndstillingerRouteImport } from './routes/_app.indstillinger'
 import { Route as AppKommendeRouteImport } from './routes/_app.kommende'
+import { Route as AppSkemaRouteImport } from './routes/_app.skema'
 
 const AppRoute = AppRouteImport.update({
   id: '/_app',
@@ -45,6 +46,11 @@ const AppKommendeRoute = AppKommendeRouteImport.update({
   path: '/kommende',
   getParentRoute: () => AppRoute,
 } as any)
+const AppSkemaRoute = AppSkemaRouteImport.update({
+  id: '/skema',
+  path: '/skema',
+  getParentRoute: () => AppRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
@@ -52,12 +58,14 @@ export interface FileRoutesByFullPath {
   '/aktivitet': typeof AppAktivitetRoute
   '/indstillinger': typeof AppIndstillingerRoute
   '/kommende': typeof AppKommendeRoute
+  '/skema': typeof AppSkemaRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/aktivitet': typeof AppAktivitetRoute
   '/indstillinger': typeof AppIndstillingerRoute
   '/kommende': typeof AppKommendeRoute
+  '/skema': typeof AppSkemaRoute
   '/': typeof AppIndexRoute
 }
 export interface FileRoutesById {
@@ -67,13 +75,15 @@ export interface FileRoutesById {
   '/_app/aktivitet': typeof AppAktivitetRoute
   '/_app/indstillinger': typeof AppIndstillingerRoute
   '/_app/kommende': typeof AppKommendeRoute
+  '/_app/skema': typeof AppSkemaRoute
   '/_app/': typeof AppIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/login' | '/aktivitet' | '/indstillinger' | '/kommende'
+  fullPaths:
+    '/' | '/login' | '/aktivitet' | '/indstillinger' | '/kommende' | '/skema'
   fileRoutesByTo: FileRoutesByTo
-  to: '/login' | '/aktivitet' | '/indstillinger' | '/kommende' | '/'
+  to: '/login' | '/aktivitet' | '/indstillinger' | '/kommende' | '/skema' | '/'
   id:
     | '__root__'
     | '/_app'
@@ -81,6 +91,7 @@ export interface FileRouteTypes {
     | '/_app/aktivitet'
     | '/_app/indstillinger'
     | '/_app/kommende'
+    | '/_app/skema'
     | '/_app/'
   fileRoutesById: FileRoutesById
 }
@@ -133,6 +144,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppKommendeRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/skema': {
+      id: '/_app/skema'
+      path: '/skema'
+      fullPath: '/skema'
+      preLoaderRoute: typeof AppSkemaRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
@@ -140,6 +158,7 @@ interface AppRouteChildren {
   AppAktivitetRoute: typeof AppAktivitetRoute
   AppIndstillingerRoute: typeof AppIndstillingerRoute
   AppKommendeRoute: typeof AppKommendeRoute
+  AppSkemaRoute: typeof AppSkemaRoute
   AppIndexRoute: typeof AppIndexRoute
 }
 
@@ -147,6 +166,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppAktivitetRoute: AppAktivitetRoute,
   AppIndstillingerRoute: AppIndstillingerRoute,
   AppKommendeRoute: AppKommendeRoute,
+  AppSkemaRoute: AppSkemaRoute,
   AppIndexRoute: AppIndexRoute,
 }
 

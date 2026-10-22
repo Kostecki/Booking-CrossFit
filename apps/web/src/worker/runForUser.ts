@@ -89,7 +89,7 @@ export async function runForUser(user: User, runId: number, dryRun: boolean): Pr
 			await notifyUser(user.id, {
 				title: `Booket ${booked.length} ${word}`,
 				body: booked.map(formatBookedDa).join("\n"),
-				url: "/kommende",
+				url: "/",
 			});
 		}
 		return "ok";

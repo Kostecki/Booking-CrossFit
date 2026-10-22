@@ -1,4 +1,4 @@
-import { AppShell, Group, Text, Title, UnstyledButton } from "@mantine/core";
+import { Alert, AppShell, Group, Text, Title, UnstyledButton } from "@mantine/core";
 import {
 	IconActivity,
 	IconCalendarEvent,
@@ -17,13 +17,14 @@ export const Route = createFileRoute("/_app")({
 });
 
 const tabs = [
-	{ to: "/", label: "Hold", icon: IconListCheck },
-	{ to: "/kommende", label: "Kommende", icon: IconCalendarEvent },
+	{ to: "/", label: "Kommende", icon: IconCalendarEvent },
+	{ to: "/skema", label: "Skema", icon: IconListCheck },
 	{ to: "/aktivitet", label: "Aktivitet", icon: IconActivity },
 	{ to: "/indstillinger", label: "Indstillinger", icon: IconSettings },
 ] as const;
 
 function Layout() {
+	const { user } = Route.useRouteContext();
 	return (
 		<AppShell header={{ height: 52 }} footer={{ height: 64 }} padding="md">
 			<AppShell.Header px="md" style={{ paddingTop: "env(safe-area-inset-top)" }}>
@@ -32,6 +33,12 @@ function Layout() {
 				</Group>
 			</AppShell.Header>
 			<AppShell.Main maw={640} mx="auto">
+				{user.status === "needs_reauth" && (
+					<Alert color="red" title="Login virker ikke længere" mb="md">
+						Dit BookingBoard-login blev afvist, så der bookes ikke.{" "}
+						<Link to="/login">Log ind igen</Link>.
+					</Alert>
+				)}
 				<Outlet />
 			</AppShell.Main>
 			<AppShell.Footer style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>

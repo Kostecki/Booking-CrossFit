@@ -1,76 +1,37 @@
-import {
-	Alert,
-	Button,
-	Card,
-	Chip,
-	Group,
-	Loader,
-	Stack,
-	Switch,
-	Text,
-	Title,
-} from "@mantine/core";
+import { Badge, Button, Card, Group, Loader, Stack, Text, Title } from "@mantine/core";
 import { IconPlayerPlay } from "@tabler/icons-react";
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useMemo, useState } from "react";
+import { useState } from "react";
+import { ConfirmButton } from "#/components/ConfirmButton.tsx";
 import { notifyError, notifyInfo } from "#/components/notify.ts";
 import { requestRun } from "#/server/runs.functions.ts";
 import {
-	getTimetable,
-	type SlotOption,
-	setPaused,
-	setSlot,
-} from "#/server/schedule.functions.ts";
+	getUpcoming,
+	setRebook,
+	setSkip,
+	type UpcomingClass,
+} from "#/server/upcoming.functions.ts";
 
 export const Route = createFileRoute("/_app/")({
-	loader: () => getTimetable(),
+	loader: () => getUpcoming(),
 	pendingComponent: () => <Loader m="xl" />,
-	component: Schedule,
+	component: Upcoming,
 });
 
-const WEEKDAYS = ["Søndag", "Mandag", "Tirsdag", "Onsdag", "Torsdag", "Fredag", "Lørdag"];
-const pad = (n: number) => String(n).padStart(2, "0");
-const keyOf = (o: SlotOption) => `${o.classTitle}|${o.weekday}|${o.hour}|${o.minute}`;
+const STATE_BADGE: Record<UpcomingClass["state"], { label: string; color: string }> = {
+	booked: { label: "Booket", color: "green" },
+	waitlist: { label: "Venteliste", color: "yellow" },
+	planned: { label: "Planlagt", color: "gray" },
+	cancelled: { label: "Aflyst", color: "red" },
+};
 
-function Schedule() {
+function Upcoming() {
 	const { user } = Route.useRouteContext();
+	const { classes, hasSchedule } = Route.useLoaderData();
 	const router = useRouter();
-	const initial = Route.useLoaderData();
-	const saveSlot = useServerFn(setSlot);
-	const savePaused = useServerFn(setPaused);
 	const runNow = useServerFn(requestRun);
-
-	// Toggles are applied locally so the timetable isn't refetched from BookingBoard each time.
-	const [options, setOptions] = useState(initial);
-	const titles = useMemo(
-		() => [...new Set(options.map((o) => o.classTitle))].sort((a, b) => a.localeCompare(b, "da")),
-		[options],
-	);
-	const [filter, setFilter] = useState<string[]>(() => {
-		const picked = [...new Set(initial.filter((o) => o.selected).map((o) => o.classTitle))];
-		if (picked.length > 0) return picked;
-		return titles.includes("WOD") ? ["WOD"] : titles;
-	});
 	const [running, setRunning] = useState(false);
-
-	const selectedCount = options.filter((o) => o.selected).length;
-	const visible = options.filter((o) => filter.includes(o.classTitle) || o.selected);
-	const byWeekday = new Map<number, SlotOption[]>();
-	for (const o of visible) byWeekday.set(o.weekday, [...(byWeekday.get(o.weekday) ?? []), o]);
-
-	async function toggle(option: SlotOption, selected: boolean) {
-		const update = (value: boolean) =>
-			setOptions((all) => all.map((o) => (keyOf(o) === keyOf(option) ? { ...o, selected: value } : o)));
-		update(selected);
-		try {
-			const { classTitle, weekday, hour, minute } = option;
-			await saveSlot({ data: { classTitle, weekday, hour, minute, selected } });
-		} catch (error) {
-			update(!selected);
-			notifyError(error);
-		}
-	}
 
 	async function onRunNow() {
 		setRunning(true);
@@ -88,76 +49,145 @@ function Schedule() {
 		}
 	}
 
-	return (
-		<Stack>
-			{user.status === "needs_reauth" && (
-				<Alert color="red" title="Login virker ikke længere">
-					Dit BookingBoard-login blev afvist, så der bookes ikke.{" "}
-					<Link to="/login">Log ind igen</Link>.
-				</Alert>
-			)}
-
+	if (!hasSchedule) {
+		return (
 			<Card withBorder>
-				<Stack gap="sm">
-					<Text size="sm">
-						Vælg de hold, du vil have booket hver uge. Hver aften kl. 19 booker vi de næste
-						hold, der passer, indtil du har 5 bookinger.
+				<Stack gap="sm" align="flex-start">
+					<Title order={4}>Vælg dine faste hold</Title>
+					<Text size="sm" c="dimmed">
+						Fortæl hvilke hold du vil have booket hver uge, så booker vi dem automatisk for dig.
 					</Text>
-					<Group justify="space-between">
-						<Switch
-							label="Automatisk booking"
-							checked={user.status === "active"}
-							disabled={user.status === "needs_reauth"}
-							onChange={async (event) => {
-								try {
-									await savePaused({ data: { paused: !event.currentTarget.checked } });
-									await router.invalidate();
-								} catch (error) {
-									notifyError(error);
-								}
-							}}
-						/>
-						<Button
-							leftSection={<IconPlayerPlay size={16} />}
-							variant="light"
-							loading={running}
-							disabled={selectedCount === 0 || user.status === "needs_reauth"}
-							onClick={onRunNow}
-						>
-							Kør min booking nu
-						</Button>
-					</Group>
+					<Button component={Link} to="/skema">
+						Vælg hold
+					</Button>
 				</Stack>
 			</Card>
-
-			<Chip.Group multiple value={filter} onChange={setFilter}>
-				<Group gap="xs">
-					{titles.map((title) => (
-						<Chip key={title} value={title} size="sm">
-							{title}
-						</Chip>
-					))}
-				</Group>
-			</Chip.Group>
-
-			{[...byWeekday.entries()].map(([weekday, slots]) => (
-				<Stack key={weekday} gap="xs">
-					<Title order={5}>{WEEKDAYS[weekday]}</Title>
-					{slots.map((option) => (
-						<Card key={keyOf(option)} withBorder padding="sm">
-							<Switch
-								checked={option.selected}
-								onChange={(event) => toggle(option, event.currentTarget.checked)}
-								label={`${pad(option.hour)}:${pad(option.minute)} · ${option.classTitle}`}
-								description={option.offered ? undefined : "Udbydes ikke længere"}
-								labelPosition="left"
-								styles={{ body: { justifyContent: "space-between" }, labelWrapper: { flex: 1 } }}
-							/>
-						</Card>
-					))}
-				</Stack>
+		);
+	}
+	return (
+		<Stack gap="xs">
+			<Group justify="space-between" wrap="nowrap" align="flex-start">
+				<Text size="sm" c="dimmed">
+					"Planlagt" er hold, der passer til dit skema. De bookes, når der er plads inden for
+					dine 5 bookinger.
+				</Text>
+				<Button
+					size="xs"
+					variant="light"
+					leftSection={<IconPlayerPlay size={14} />}
+					loading={running}
+					disabled={user.status === "needs_reauth"}
+					onClick={onRunNow}
+					style={{ flexShrink: 0 }}
+				>
+					Kør nu
+				</Button>
+			</Group>
+			{classes.length === 0 && <Text c="dimmed">Ingen kommende hold endnu.</Text>}
+			{classes.map((cls) => (
+				<ClassRow key={cls.classId} cls={cls} />
 			))}
-			{visible.length === 0 && <Text c="dimmed">Vælg en eller flere holdtyper ovenfor.</Text>}
 		</Stack>
+	);
+}
+
+function ClassRow({ cls }: { cls: UpcomingClass }) {
+	const router = useRouter();
+	const skip = useServerFn(setSkip);
+	const rebook = useServerFn(setRebook);
+	const [busy, setBusy] = useState(false);
+	const badge = cls.skipped ? { label: "Springes over", color: "gray" } : STATE_BADGE[cls.state];
+	const held = cls.state === "booked" || cls.state === "waitlist";
+
+	async function act(fn: () => Promise<unknown>) {
+		setBusy(true);
+		try {
+			await fn();
+			await router.invalidate();
+		} catch (error) {
+			notifyError(error);
+		} finally {
+			setBusy(false);
+		}
+	}
+	const setSkipped = (enabled: boolean) =>
+		skip({ data: { classId: cls.classId, begins: cls.begins, enabled } });
+
+	let action = null;
+	if (cls.skipped) {
+		action = (
+			<Button size="xs" variant="subtle" loading={busy} onClick={() => act(() => setSkipped(false))}>
+				Fortryd
+			</Button>
+		);
+	} else if (held) {
+		action = (
+			<ConfirmButton
+				size="xs"
+				variant="subtle"
+				color="red"
+				title="Spring over"
+				message={`Det aflyser din booking til ${cls.title} ${cls.dateLabel} kl. ${cls.time}, og pladsen går til det næste hold i dit skema.`}
+				confirmLabel="Aflys og spring over"
+				onConfirm={() => act(() => setSkipped(true))}
+			>
+				Spring over
+			</ConfirmButton>
+		);
+	} else if (cls.state === "planned") {
+		action = (
+			<Button size="xs" variant="subtle" loading={busy} onClick={() => act(() => setSkipped(true))}>
+				Spring over
+			</Button>
+		);
+	} else if (cls.rebookPending) {
+		action = (
+			<Button
+				size="xs"
+				variant="subtle"
+				loading={busy}
+				onClick={() => act(() => rebook({ data: { classId: cls.classId, enabled: false } }))}
+			>
+				Fortryd genbooking
+			</Button>
+		);
+	} else {
+		action = (
+			<Button
+				size="xs"
+				variant="light"
+				loading={busy}
+				onClick={() => act(() => rebook({ data: { classId: cls.classId, enabled: true } }))}
+			>
+				Book igen én gang
+			</Button>
+		);
+	}
+
+	return (
+		<Card withBorder padding="sm" opacity={cls.skipped ? 0.6 : 1}>
+			<Group justify="space-between" wrap="nowrap">
+				<Stack gap={2}>
+					<Text fw={500}>
+						{cls.dateLabel} · {cls.time}
+					</Text>
+					<Group gap="xs">
+						<Text size="sm" c="dimmed">
+							{cls.title}
+							{cls.occupancy ? ` (${cls.occupancy})` : ""}
+						</Text>
+						<Badge size="sm" variant="light" color={badge.color}>
+							{badge.label}
+						</Badge>
+						{cls.rebookPending && !cls.skipped && (
+							<Badge size="sm" variant="light" color="blue">
+								Genbookes
+							</Badge>
+						)}
+					</Group>
+				</Stack>
+				{action}
+			</Group>
+		</Card>
 	);
 }

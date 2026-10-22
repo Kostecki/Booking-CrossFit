@@ -28,10 +28,13 @@ export type UpcomingClass = {
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
-/** The user's held and cancelled bookings plus the schedule's planned classes, by date. */
+/**
+ * The user's held and cancelled bookings plus the schedule's planned classes, by date,
+ * and whether they've set up a schedule at all.
+ */
 export const getUpcoming = createServerFn({ method: "GET" })
 	.middleware([authMiddleware])
-	.handler(async ({ context: { user } }): Promise<UpcomingClass[]> => {
+	.handler(async ({ context: { user } }): Promise<{ classes: UpcomingClass[]; hasSchedule: boolean }> => {
 		const [bookings, classes] = await withBookingToken(user, (token) =>
 			Promise.all([getMyBookings(token, user.bbAccountId), getUpcomingClasses(token)]),
 		);
@@ -104,7 +107,10 @@ export const getUpcoming = createServerFn({ method: "GET" })
 			}
 		}
 
-		return [...rows.values()].sort((a, b) => Date.parse(a.begins) - Date.parse(b.begins));
+		return {
+			classes: [...rows.values()].sort((a, b) => Date.parse(a.begins) - Date.parse(b.begins)),
+			hasSchedule: slots.length > 0,
+		};
 	});
 
 const classInput = (input: { classId: number; begins?: string; enabled: boolean }) => {
