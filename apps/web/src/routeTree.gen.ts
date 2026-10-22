@@ -12,6 +12,9 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppIndexRouteImport } from './routes/_app.index'
+import { Route as AppAktivitetRouteImport } from './routes/_app.aktivitet'
+import { Route as AppIndstillingerRouteImport } from './routes/_app.indstillinger'
+import { Route as AppKommendeRouteImport } from './routes/_app.kommende'
 
 const AppRoute = AppRouteImport.update({
   id: '/_app',
@@ -27,27 +30,58 @@ const AppIndexRoute = AppIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppRoute,
 } as any)
+const AppAktivitetRoute = AppAktivitetRouteImport.update({
+  id: '/aktivitet',
+  path: '/aktivitet',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppIndstillingerRoute = AppIndstillingerRouteImport.update({
+  id: '/indstillinger',
+  path: '/indstillinger',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppKommendeRoute = AppKommendeRouteImport.update({
+  id: '/kommende',
+  path: '/kommende',
+  getParentRoute: () => AppRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/login': typeof LoginRoute
+  '/aktivitet': typeof AppAktivitetRoute
+  '/indstillinger': typeof AppIndstillingerRoute
+  '/kommende': typeof AppKommendeRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
+  '/aktivitet': typeof AppAktivitetRoute
+  '/indstillinger': typeof AppIndstillingerRoute
+  '/kommende': typeof AppKommendeRoute
   '/': typeof AppIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
+  '/_app/aktivitet': typeof AppAktivitetRoute
+  '/_app/indstillinger': typeof AppIndstillingerRoute
+  '/_app/kommende': typeof AppKommendeRoute
   '/_app/': typeof AppIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/login'
+  fullPaths: '/' | '/login' | '/aktivitet' | '/indstillinger' | '/kommende'
   fileRoutesByTo: FileRoutesByTo
-  to: '/login' | '/'
-  id: '__root__' | '/_app' | '/login' | '/_app/'
+  to: '/login' | '/aktivitet' | '/indstillinger' | '/kommende' | '/'
+  id:
+    | '__root__'
+    | '/_app'
+    | '/login'
+    | '/_app/aktivitet'
+    | '/_app/indstillinger'
+    | '/_app/kommende'
+    | '/_app/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -78,14 +112,41 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/aktivitet': {
+      id: '/_app/aktivitet'
+      path: '/aktivitet'
+      fullPath: '/aktivitet'
+      preLoaderRoute: typeof AppAktivitetRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/indstillinger': {
+      id: '/_app/indstillinger'
+      path: '/indstillinger'
+      fullPath: '/indstillinger'
+      preLoaderRoute: typeof AppIndstillingerRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/kommende': {
+      id: '/_app/kommende'
+      path: '/kommende'
+      fullPath: '/kommende'
+      preLoaderRoute: typeof AppKommendeRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
 interface AppRouteChildren {
+  AppAktivitetRoute: typeof AppAktivitetRoute
+  AppIndstillingerRoute: typeof AppIndstillingerRoute
+  AppKommendeRoute: typeof AppKommendeRoute
   AppIndexRoute: typeof AppIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppAktivitetRoute: AppAktivitetRoute,
+  AppIndstillingerRoute: AppIndstillingerRoute,
+  AppKommendeRoute: AppKommendeRoute,
   AppIndexRoute: AppIndexRoute,
 }
 

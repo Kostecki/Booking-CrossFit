@@ -1,10 +1,11 @@
 import { getAccount, login } from "@booking/core/api";
 import { createServerFn } from "@tanstack/react-start";
-import { sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { db } from "#/db/index.ts";
 import { users } from "#/db/schema.ts";
 import { CHAIN_ID, isAuthFailure } from "./bookingboard.ts";
 import { encrypt } from "./crypto.ts";
+import { authMiddleware } from "./middleware.ts";
 import { createSession, destroySession, getSessionUser } from "./session.ts";
 
 export type CurrentUser = {
@@ -72,3 +73,11 @@ export const loginWithBookingBoard = createServerFn({ method: "POST" })
 export const logout = createServerFn({ method: "POST" }).handler(async () => {
 	destroySession();
 });
+
+/** Delete the user and everything stored about them, including the encrypted password. */
+export const deleteAccount = createServerFn({ method: "POST" })
+	.middleware([authMiddleware])
+	.handler(async ({ context: { user } }) => {
+		destroySession();
+		db.delete(users).where(eq(users.id, user.id)).run();
+	});

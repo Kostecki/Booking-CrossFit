@@ -1,10 +1,12 @@
 import "@mantine/core/styles.css";
+import "@mantine/notifications/styles.css";
 import {
 	ColorSchemeScript,
 	createTheme,
 	MantineProvider,
 	mantineHtmlProps,
 } from "@mantine/core";
+import { Notifications } from "@mantine/notifications";
 import { createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { getCurrentUser } from "#/server/auth.functions.ts";
@@ -32,6 +34,7 @@ function RootDocument({ children }: { children: ReactNode }) {
 			</head>
 			<body>
 				<MantineProvider theme={theme} defaultColorScheme="auto">
+					<Notifications position="top-center" />
 					{children}
 				</MantineProvider>
 				<Scripts />

@@ -1,5 +1,6 @@
 import "@tanstack/react-start/server-only";
-import { ApiError, login } from "@booking/core/api";
+import { ApiError, getClasses, login, toApiDateTime } from "@booking/core/api";
+import { getTimePartsInZone } from "@booking/core/automation";
 import { eq } from "drizzle-orm";
 import { db } from "#/db/index.ts";
 import { type User, users } from "#/db/schema.ts";
@@ -7,6 +8,9 @@ import { decrypt, encrypt } from "./crypto.ts";
 
 // Single gym for now: CrossFit Roskilde.
 export const CHAIN_ID = Number(process.env.CHAIN_ID ?? 291);
+export const TIME_ZONE = "Europe/Copenhagen";
+// The gym's limit on concurrent bookings.
+export const MAX_TOTAL_SESSIONS = 5;
 
 /** Thrown when the stored password no longer logs in; the user must log in again. */
 export class NeedsReauthError extends Error {
@@ -53,3 +57,9 @@ export async function withBookingToken<T>(
 	return fn(await freshToken(user));
 }
 
+
+/** All classes from today (gym time) through the API's ~4-week window. */
+export function getUpcomingClasses(token: string) {
+	const today = getTimePartsInZone(Date.now(), TIME_ZONE);
+	return getClasses(token, toApiDateTime(today.year, today.month, today.day));
+}

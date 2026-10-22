@@ -17,6 +17,7 @@
 		"@mantine/core": "9.7.3",
 		"@mantine/hooks": "9.7.3",
 		"@mantine/notifications": "9.7.3",
+		"@tabler/icons-react": "3.49.0",
 		"@tanstack/react-router": "1.170.45",
 		"@tanstack/react-start": "1.169.3",
 		"better-sqlite3": "13.0.3",

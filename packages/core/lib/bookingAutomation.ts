@@ -11,6 +11,8 @@ import type { ClassRegistration, ClazzMobile } from "../types.ts";
 // Statuses that mean the booking no longer counts (cancelled / opted out).
 const CANCELLED_STATUSES = new Set(["OptedOut", "OptedOutTooLate"]);
 
+export const isCancelled = (status: string) => CANCELLED_STATUSES.has(status);
+
 // A recurring class to book: this title, on this weekday (0=Sun…6=Sat), at this time.
 export type ClassSlot = {
 	classTitle: string;
@@ -50,7 +52,7 @@ export type BookedClass = {
 	rebooked: boolean;
 };
 
-function getTimePartsInZone(
+export function getTimePartsInZone(
 	timestampMs: number,
 	timeZone: string,
 ): { year: number; month: number; day: number; hour: number; minute: number } {
@@ -77,7 +79,7 @@ function getTimePartsInZone(
 	};
 }
 
-function weekdayForDate(year: number, month: number, day: number): number {
+export function weekdayForDate(year: number, month: number, day: number): number {
 	return new Date(year, month - 1, day).getDay();
 }
 
@@ -102,7 +104,7 @@ function isTargetClass(cls: ClazzMobile, targetTitle: string): boolean {
 	return title === target || type === target;
 }
 
-function matchingSlot(
+export function matchingSlot(
 	cls: ClazzMobile,
 	ms: number,
 	slots: ClassSlot[],
@@ -145,7 +147,7 @@ const DA_MONTHS = [
 
 // Built manually so it doesn't depend on the runtime shipping Danish ICU data
 // (small-icu Node builds silently fall back to English for "da-DK").
-function danishDateLabel(timestampMs: number, timeZone: string): string {
+export function danishDateLabel(timestampMs: number, timeZone: string): string {
 	const parts = new Intl.DateTimeFormat("en-GB", {
 		timeZone,
 		year: "numeric",
