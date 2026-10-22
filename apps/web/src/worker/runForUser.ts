@@ -180,7 +180,7 @@ export async function runForUser(
 				await notifyUser(user.id, {
 					title: "Booking fejlede",
 					body: message,
-					url: "/activity",
+					url: "/history",
 				});
 			}
 		}

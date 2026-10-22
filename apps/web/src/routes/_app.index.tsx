@@ -63,7 +63,7 @@ function Upcoming() {
 				notifyInfo(result.error);
 				return;
 			}
-			await router.navigate({ to: "/activity" });
+			await router.navigate({ to: "/history" });
 		} catch (error) {
 			notifyError(error);
 		} finally {

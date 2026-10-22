@@ -1,10 +1,10 @@
-import { Badge, Card, Group, Loader, Stack, Text } from "@mantine/core";
+import { Badge, Card, Group, Loader, Stack, Text, Title } from "@mantine/core";
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useEffect } from "react";
 
 import { getRuns, type RunSummary } from "#/server/runs.functions.ts";
 
-export const Route = createFileRoute("/_app/activity")({
+export const Route = createFileRoute("/_app/history")({
 	loader: () => getRuns(),
 	pendingComponent: () => <Loader m="xl" />,
 	component: Activity,
@@ -14,7 +14,7 @@ const STATUS_BADGE: Record<
 	RunSummary["status"],
 	{ label: string; color: string }
 > = {
-	queued: { label: "I kø", color: "gray" },
+	queued: { label: "Venter", color: "gray" },
 	running: { label: "Kører", color: "blue" },
 	ok: { label: "OK", color: "green" },
 	error: { label: "Fejl", color: "red" },
@@ -44,15 +44,21 @@ function Activity() {
 		return () => clearInterval(timer);
 	}, [inProgress, router]);
 
-	if (runs.length === 0) {
-		return (
-			<Text c="dimmed" ta="center" mt="md">
-				Ingen bookinger foretaget
-			</Text>
-		);
-	}
 	return (
 		<Stack gap="xs">
+			<Stack gap={0} mb="xs">
+				<Title order={4}>Bookinghistorik</Title>
+				<Text size="xs" c="dimmed">
+					Dine hold bookes automatisk hver aften kl. 19 og når du trykker "Book
+					nu". <br /> Et nyt forsøg står som "Venter" et øjeblik, før det
+					starter.
+				</Text>
+			</Stack>
+			{runs.length === 0 && (
+				<Text c="dimmed" ta="center" mt="md">
+					Ingen bookinger foretaget
+				</Text>
+			)}
 			{runs.map((run) => {
 				const badge = STATUS_BADGE[run.status];
 				return (

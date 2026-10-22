@@ -9,8 +9,8 @@ import {
 	UnstyledButton,
 } from "@mantine/core";
 import {
-	IconActivity,
 	IconCalendarEvent,
+	IconHistory,
 	IconListCheck,
 	IconSettings,
 } from "@tabler/icons-react";
@@ -41,7 +41,7 @@ const TAB_BAR_HEIGHT = "calc(56px + env(safe-area-inset-bottom))";
 const tabs = [
 	{ to: "/", label: "Bookinger", icon: IconCalendarEvent },
 	{ to: "/schedule", label: "Auto-booking", icon: IconListCheck },
-	{ to: "/activity", label: "Aktivitet", icon: IconActivity },
+	{ to: "/history", label: "Historik", icon: IconHistory },
 	{ to: "/settings", label: "Indstillinger", icon: IconSettings },
 ] as const;
 
