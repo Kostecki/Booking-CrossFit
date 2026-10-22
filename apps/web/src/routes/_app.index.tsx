@@ -1,8 +1,17 @@
-import { Badge, Button, Card, Group, Loader, Stack, Text, Title } from "@mantine/core";
+import {
+	Badge,
+	Button,
+	Card,
+	Group,
+	Loader,
+	Stack,
+	Text,
+	Title,
+} from "@mantine/core";
 import { IconPlayerPlay } from "@tabler/icons-react";
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { ConfirmButton } from "#/components/ConfirmButton.tsx";
 import { notifyError, notifyInfo } from "#/components/notify.ts";
 import { requestRun } from "#/server/runs.functions.ts";
@@ -19,11 +28,14 @@ export const Route = createFileRoute("/_app/")({
 	component: Upcoming,
 });
 
-const STATE_BADGE: Record<UpcomingClass["state"], { label: string; color: string }> = {
+const STATE_BADGE: Record<
+	UpcomingClass["state"],
+	{ label: string; color: string }
+> = {
 	booked: { label: "Booket", color: "green" },
 	waitlist: { label: "Venteliste", color: "yellow" },
 	planned: { label: "Planlagt", color: "gray" },
-	cancelled: { label: "Aflyst", color: "red" },
+	cancelled: { label: "Afmeldt", color: "red" },
 };
 
 function Upcoming() {
@@ -55,7 +67,8 @@ function Upcoming() {
 				<Stack gap="sm" align="flex-start">
 					<Title order={4}>Vælg dine faste hold</Title>
 					<Text size="sm" c="dimmed">
-						Fortæl hvilke hold du vil have booket hver uge, så booker vi dem automatisk for dig.
+						Fortæl hvilke hold du vil have booket hver uge, så booker vi dem
+						automatisk for dig.
 					</Text>
 					<Button component={Link} to="/schedule">
 						Vælg hold
@@ -66,24 +79,28 @@ function Upcoming() {
 	}
 	return (
 		<Stack gap="xs">
-			<Group justify="space-between" wrap="nowrap" align="flex-start">
-				<Text size="sm" c="dimmed">
-					"Planlagt" er hold, der passer til dit skema. De bookes, når der er plads inden for
-					dine 5 bookinger.
-				</Text>
+			<Group justify="space-between" wrap="nowrap" mb="xs">
+				<Stack gap={0} miw={0}>
+					<Title order={4}>Dine bookinger</Title>
+					<Text size="xs" c="dimmed">
+						Bookes automatisk hver aften kl. 19
+					</Text>
+				</Stack>
 				<Button
 					size="xs"
-					variant="light"
+					variant="outline"
 					leftSection={<IconPlayerPlay size={14} />}
 					loading={running}
 					disabled={user.status === "needs_reauth"}
 					onClick={onRunNow}
 					style={{ flexShrink: 0 }}
 				>
-					Kør nu
+					Book nu
 				</Button>
 			</Group>
-			{classes.length === 0 && <Text c="dimmed">Ingen kommende hold endnu.</Text>}
+			{classes.length === 0 && (
+				<Text c="dimmed">Ingen kommende hold endnu.</Text>
+			)}
 			{classes.map((cls) => (
 				<ClassRow key={cls.classId} cls={cls} />
 			))}
@@ -95,28 +112,45 @@ function ClassRow({ cls }: { cls: UpcomingClass }) {
 	const router = useRouter();
 	const skip = useServerFn(setSkip);
 	const rebook = useServerFn(setRebook);
-	const [busy, setBusy] = useState(false);
-	const badge = cls.skipped ? { label: "Springes over", color: "gray" } : STATE_BADGE[cls.state];
-	const held = cls.state === "booked" || cls.state === "waitlist";
+	// Guards against double taps. No loading state on these small text buttons:
+	// Mantine's label/spinner animation reads as a flicker for a sub-second request.
+	const busy = useRef(false);
+	// Optimistic changes shown right away, until the reloaded list arrives (or the request fails).
+	const [patch, setPatch] =
+		useState<Partial<Pick<UpcomingClass, "skipped" | "rebookPending">>>();
+	const view = { ...cls, ...patch };
+	const badge = view.skipped
+		? { label: "Springes over", color: "gray" }
+		: STATE_BADGE[view.state];
+	const held = view.state === "booked" || view.state === "waitlist";
 
-	async function act(fn: () => Promise<unknown>) {
-		setBusy(true);
+	async function act(fn: () => Promise<unknown>, optimistic?: typeof patch) {
+		if (busy.current) return;
+		busy.current = true;
+		setPatch(optimistic);
 		try {
 			await fn();
-			await router.invalidate();
+			// sync: wait for the reloaded list, not just the start of the reload, so the
+			// optimistic patch is only dropped once the real state is on screen.
+			await router.invalidate({ sync: true });
 		} catch (error) {
 			notifyError(error);
 		} finally {
-			setBusy(false);
+			setPatch(undefined);
+			busy.current = false;
 		}
 	}
 	const setSkipped = (enabled: boolean) =>
 		skip({ data: { classId: cls.classId, begins: cls.begins, enabled } });
 
 	let action = null;
-	if (cls.skipped) {
+	if (view.skipped) {
 		action = (
-			<Button size="xs" variant="subtle" loading={busy} onClick={() => act(() => setSkipped(false))}>
+			<Button
+				size="xs"
+				variant="subtle"
+				onClick={() => act(() => setSkipped(false), { skipped: false })}
+			>
 				Fortryd
 			</Button>
 		);
@@ -134,38 +168,49 @@ function ClassRow({ cls }: { cls: UpcomingClass }) {
 				Spring over
 			</ConfirmButton>
 		);
-	} else if (cls.state === "planned") {
-		action = (
-			<Button size="xs" variant="subtle" loading={busy} onClick={() => act(() => setSkipped(true))}>
-				Spring over
-			</Button>
-		);
-	} else if (cls.rebookPending) {
+	} else if (view.state === "planned") {
 		action = (
 			<Button
 				size="xs"
 				variant="subtle"
-				loading={busy}
-				onClick={() => act(() => rebook({ data: { classId: cls.classId, enabled: false } }))}
+				onClick={() => act(() => setSkipped(true), { skipped: true })}
 			>
-				Fortryd genbooking
+				Spring over
+			</Button>
+		);
+	} else if (view.rebookPending) {
+		action = (
+			<Button
+				size="xs"
+				variant="subtle"
+				onClick={() =>
+					act(
+						() => rebook({ data: { classId: cls.classId, enabled: false } }),
+						{ rebookPending: false },
+					)
+				}
+			>
+				Fortryd
 			</Button>
 		);
 	} else {
 		action = (
 			<Button
 				size="xs"
-				variant="light"
-				loading={busy}
-				onClick={() => act(() => rebook({ data: { classId: cls.classId, enabled: true } }))}
+				variant="subtle"
+				onClick={() =>
+					act(() => rebook({ data: { classId: cls.classId, enabled: true } }), {
+						rebookPending: true,
+					})
+				}
 			>
-				Book igen én gang
+				Genbook
 			</Button>
 		);
 	}
 
 	return (
-		<Card withBorder padding="sm" opacity={cls.skipped ? 0.6 : 1}>
+		<Card withBorder padding="sm" opacity={view.skipped ? 0.6 : 1}>
 			<Group justify="space-between" wrap="nowrap">
 				<Stack gap={2}>
 					<Text fw={500}>
@@ -179,7 +224,7 @@ function ClassRow({ cls }: { cls: UpcomingClass }) {
 						<Badge size="sm" variant="light" color={badge.color}>
 							{badge.label}
 						</Badge>
-						{cls.rebookPending && !cls.skipped && (
+						{view.rebookPending && !view.skipped && (
 							<Badge size="sm" variant="light" color="blue">
 								Genbookes
 							</Badge>

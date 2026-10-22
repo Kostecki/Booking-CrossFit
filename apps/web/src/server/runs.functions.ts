@@ -68,7 +68,7 @@ export const requestRun = createServerFn({ method: "POST" })
 		if (waitMs > 0) {
 			return {
 				ok: false as const,
-				error: `Du kan køre igen om ${Math.ceil(waitMs / 60000)} min.`,
+				error: `Du kan booke igen om ${Math.ceil(waitMs / 60000)} min.`,
 			};
 		}
 
