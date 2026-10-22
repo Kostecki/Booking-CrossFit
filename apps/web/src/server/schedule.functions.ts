@@ -5,11 +5,7 @@ import { and, eq } from "drizzle-orm";
 import { db } from "#/db/index.ts";
 import { scheduleSlots, users } from "#/db/schema.ts";
 
-import {
-	getUpcomingClasses,
-	TIME_ZONE,
-	withBookingToken,
-} from "./bookingboard.ts";
+import { loadTimetable, TIME_ZONE } from "./bookingboard.ts";
 import { authMiddleware } from "./middleware.ts";
 
 export type SlotOption = {
@@ -36,7 +32,7 @@ const weekdayOrder = (weekday: number) => (weekday + 6) % 7;
 export const getTimetable = createServerFn({ method: "GET" })
 	.middleware([authMiddleware])
 	.handler(async ({ context: { user } }) => {
-		const classes = await withBookingToken(user, getUpcomingClasses);
+		const classes = await loadTimetable(user);
 		const selected = db
 			.select()
 			.from(scheduleSlots)

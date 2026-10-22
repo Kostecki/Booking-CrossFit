@@ -1,4 +1,4 @@
-import { cancelBooking, getMyBookings } from "@booking/core/api";
+import { cancelBooking } from "@booking/core/api";
 import {
 	danishDateLabel,
 	getTimePartsInZone,
@@ -13,7 +13,9 @@ import { db } from "#/db/index.ts";
 import { rebookRequests, scheduleSlots, skips } from "#/db/schema.ts";
 
 import {
-	getUpcomingClasses,
+	forgetBookings,
+	loadBookings,
+	loadTimetable,
 	TIME_ZONE,
 	withBookingToken,
 } from "./bookingboard.ts";
@@ -42,16 +44,19 @@ const pad = (n: number) => String(n).padStart(2, "0");
  */
 export const getUpcoming = createServerFn({ method: "GET" })
 	.middleware([authMiddleware])
+	// fresh: skip the cached bookings (page load, or the app came back to the foreground).
+	.validator((input?: { fresh?: boolean }) => ({
+		fresh: input?.fresh === true,
+	}))
 	.handler(
 		async ({
+			data: { fresh },
 			context: { user },
 		}): Promise<{ classes: UpcomingClass[]; hasSchedule: boolean }> => {
-			const [bookings, classes] = await withBookingToken(user, (token) =>
-				Promise.all([
-					getMyBookings(token, user.bbAccountId),
-					getUpcomingClasses(token),
-				]),
-			);
+			const [bookings, classes] = await Promise.all([
+				loadBookings(user, { fresh }),
+				loadTimetable(user),
+			]);
 			const nowMs = Date.now();
 			db.delete(skips)
 				.where(
@@ -188,9 +193,8 @@ export const setSkip = createServerFn({ method: "POST" })
 	.handler(
 		async ({ data: { classId, begins, enabled }, context: { user } }) => {
 			const accountId = user.bbAccountId;
-			const bookings = await withBookingToken(user, (token) =>
-				getMyBookings(token, accountId),
-			);
+			// Always fresh: never cancel (or not cancel) based on a stale list.
+			const bookings = await loadBookings(user, { fresh: true });
 			const registration = bookings.find((b) => b.classId === classId);
 
 			if (enabled) {
@@ -202,6 +206,7 @@ export const setSkip = createServerFn({ method: "POST" })
 							accountId,
 						}),
 					);
+					forgetBookings(user.id);
 				}
 				db.insert(skips)
 					.values({

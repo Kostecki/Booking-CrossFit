@@ -17,6 +17,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useRef, useState } from "react";
 
 import { ConfirmButton } from "#/components/ConfirmButton.tsx";
+import { takeFreshRequest } from "#/components/freshness.ts";
 import { notifyError, notifyInfo } from "#/components/notify.ts";
 import { requestRun } from "#/server/runs.functions.ts";
 import {
@@ -27,7 +28,7 @@ import {
 } from "#/server/upcoming.functions.ts";
 
 export const Route = createFileRoute("/_app/")({
-	loader: () => getUpcoming(),
+	loader: () => getUpcoming({ data: { fresh: takeFreshRequest() } }),
 	pendingComponent: () => <Loader m="xl" />,
 	component: Upcoming,
 });

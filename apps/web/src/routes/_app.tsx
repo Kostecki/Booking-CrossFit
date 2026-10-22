@@ -19,7 +19,11 @@ import {
 	Link,
 	Outlet,
 	redirect,
+	useRouter,
 } from "@tanstack/react-router";
+import { useEffect } from "react";
+
+import { requestFreshData } from "#/components/freshness.ts";
 
 // Everything under this layout requires a logged-in user.
 export const Route = createFileRoute("/_app")({
@@ -41,8 +45,25 @@ const tabs = [
 	{ to: "/settings", label: "Indstillinger", icon: IconSettings },
 ] as const;
 
+// Reload the current page when the app comes back to the foreground, e.g. after
+// booking in the BookingBoard app, and skip the server's cached bookings for it.
+function useRefreshOnResume() {
+	const router = useRouter();
+	useEffect(() => {
+		const onVisibilityChange = () => {
+			if (document.visibilityState !== "visible") return;
+			requestFreshData();
+			router.invalidate();
+		};
+		document.addEventListener("visibilitychange", onVisibilityChange);
+		return () =>
+			document.removeEventListener("visibilitychange", onVisibilityChange);
+	}, [router]);
+}
+
 function Layout() {
 	const { user } = Route.useRouteContext();
+	useRefreshOnResume();
 	return (
 		<AppShell
 			header={{ height: 52 }}
