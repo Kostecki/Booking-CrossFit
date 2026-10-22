@@ -2,18 +2,26 @@ import { Button, Card, Stack, Text, Title } from "@mantine/core";
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { ConfirmButton } from "#/components/ConfirmButton.tsx";
+import { NotificationsCard } from "#/components/NotificationsCard.tsx";
 import { deleteAccount, logout } from "#/server/auth.functions.ts";
+import { getPushConfig } from "#/server/push.functions.ts";
 
-export const Route = createFileRoute("/_app/indstillinger")({ component: Settings });
+export const Route = createFileRoute("/_app/indstillinger")({
+	loader: () => getPushConfig(),
+	component: Settings,
+});
 
 function Settings() {
 	const { user } = Route.useRouteContext();
 	const router = useRouter();
 	const doLogout = useServerFn(logout);
 	const doDelete = useServerFn(deleteAccount);
+	const { publicKey } = Route.useLoaderData();
 
 	return (
 		<Stack>
+			<NotificationsCard publicKey={publicKey} />
+
 			<Card withBorder>
 				<Stack gap="xs">
 					<Title order={5}>Konto</Title>

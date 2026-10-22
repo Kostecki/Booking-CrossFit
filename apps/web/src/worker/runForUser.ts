@@ -5,7 +5,7 @@ import {
 	formatBookedDa,
 	runBookingAutomation,
 } from "@booking/core/automation";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, ne } from "drizzle-orm";
 import { db } from "#/db/index.ts";
 import { rebookRequests, runs, scheduleSlots, skips, type User, users } from "#/db/schema.ts";
 import {
@@ -28,6 +28,12 @@ const isTransient = (error: unknown) =>
  * Never throws: failures are stored on the run and reported through the outcome.
  */
 export async function runForUser(user: User, runId: number, dryRun: boolean): Promise<RunOutcome> {
+	const previous = db
+		.select({ status: runs.status })
+		.from(runs)
+		.where(and(eq(runs.userId, user.id), ne(runs.id, runId)))
+		.orderBy(desc(runs.id))
+		.get();
 	const lines: string[] = [];
 	const log = (line: string) => {
 		lines.push(line);
@@ -100,9 +106,15 @@ export async function runForUser(user: User, runId: number, dryRun: boolean): Pr
 			.where(eq(runs.id, runId))
 			.run();
 
-		// Tell the user once when their login stops working (status flips to needs_reauth here).
-		if (reauth && user.status !== "needs_reauth" && !dryRun) {
-			await notifyUser(user.id, { title: "Log ind igen", body: message, url: "/login" });
+		// Tell the user once when their login stops working (status flips to needs_reauth here),
+		// and about other failures only when the previous run went fine, so a lasting
+		// problem doesn't notify every day.
+		if (!dryRun) {
+			if (reauth && user.status !== "needs_reauth") {
+				await notifyUser(user.id, { title: "Log ind igen", body: message, url: "/login" });
+			} else if (!reauth && previous?.status !== "error") {
+				await notifyUser(user.id, { title: "Booking fejlede", body: message, url: "/aktivitet" });
+			}
 		}
 		return isTransient(error) ? "transient_error" : "error";
 	}

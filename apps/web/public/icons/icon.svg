@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" fill="#fd7e14"/>
+  <!-- kettlebell, kept inside the maskable safe zone -->
+  <path d="M196 214 C176 150 196 118 256 118 C316 118 336 150 316 214" fill="none" stroke="#fff" stroke-width="34" stroke-linecap="round"/>
+  <path d="M256 196 C335 196 380 245 380 310 C380 352 362 380 340 394 L172 394 C150 380 132 352 132 310 C132 245 177 196 256 196 Z" fill="#fff"/>
+  <rect x="210" y="282" width="92" height="20" rx="10" fill="#fd7e14"/>
+</svg>
