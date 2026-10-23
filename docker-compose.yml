@@ -43,3 +43,23 @@ services:
         condition: service_healthy
     labels:
       - "nautical-backup.group=booking-crossfit"
+
+  # Drizzle Gateway: browse and edit app.db at http://<host>:${GATEWAY_PORT}. Add a
+  # SQLite connection to /data/app.db in its UI. Keep the port off the public internet.
+  # The gateway folder must be owned by 1000:1000 as well: sudo mkdir -p "$DATA_DIR/gateway"
+  gateway:
+    image: ghcr.io/drizzle-team/gateway:latest
+    restart: unless-stopped
+    container_name: booking-crossfit-gateway
+    ports:
+      - "${GATEWAY_PORT:-4983}:4983"
+    environment:
+      PORT: 4983
+      STORE_PATH: /app
+      MASTERPASS: ${GATEWAY_MASTERPASS}
+    volumes:
+      # Read-write: SQLite in WAL mode needs to write its -shm file even to read.
+      - ${DATA_DIR:-.}/data:/data
+      - ${DATA_DIR:-.}/gateway:/app
+    labels:
+      - "nautical-backup.group=booking-crossfit"
