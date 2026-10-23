@@ -6,18 +6,18 @@ import {
 	reactivateBooking,
 	toApiDateTime,
 } from "../bookingApi.ts";
-import type { ClassRegistration, ClazzMobile } from "../types.ts";
+import type { ClassRegistration, ClazzMobile, Participant } from "../types.ts";
 
 // Statuses that mean the booking no longer counts (cancelled / opted out).
 const CANCELLED_STATUSES = new Set(["OptedOut", "OptedOutTooLate"]);
 
 export const isCancelled = (status: string) => CANCELLED_STATUSES.has(status);
 
-// Statuses seen with real data. Anything else is most likely the waiting list's
-// status, whose exact name hasn't been observed yet; it's logged with this prefix
-// so the app can record it (see apps/web waitlistDebug.ts). Remove once known.
+// Statuses seen with real data. Anything else is logged with this prefix so the app
+// can record it (see apps/web waitlistDebug.ts).
 const KNOWN_STATUSES = new Set([
 	"SignedUp",
+	"OnWaitingList",
 	"OptedOut",
 	"OptedOutTooLate",
 	"OnTime",
@@ -194,11 +194,47 @@ function dateLabel(
 	});
 }
 
-function occupancyLabel(
-	count: number | undefined,
-	max: number | undefined,
-): string {
-	return count !== undefined && max !== undefined ? ` (${count}/${max})` : "";
+type Capacity = Pick<
+	ClazzMobile,
+	| "numberOfParticipants"
+	| "numberOfParticipantsOnWaitingList"
+	| "maximumNumberOfParticipants"
+>;
+
+/**
+ * Seats taken out of the total, e.g. "16/16". BookingBoard's numberOfParticipants
+ * includes the waiting list, so it's subtracted (a full class would read "17/16").
+ */
+export function occupancy(cls: Capacity): string | undefined {
+	const { numberOfParticipants: count, maximumNumberOfParticipants: max } = cls;
+	if (count === undefined || max === undefined) return undefined;
+	const taken = Math.max(
+		0,
+		count - (cls.numberOfParticipantsOnWaitingList ?? 0),
+	);
+	return `${taken}/${max}`;
+}
+
+function occupancyLabel(cls: Capacity): string {
+	const value = occupancy(cls);
+	return value ? ` (${value})` : "";
+}
+
+/**
+ * 1-based position of a participation on the class's waiting list, ordered by sign-up
+ * time (assumed first come, first served), or undefined if it isn't waiting.
+ */
+export function waitingListPosition(
+	participants: Participant[],
+	participationId: number,
+): number | undefined {
+	const waiting = participants
+		.filter((p) => p.status === "OnWaitingList")
+		.sort(
+			(a, b) => Date.parse(a.signedUpAt ?? "") - Date.parse(b.signedUpAt ?? ""),
+		);
+	const index = waiting.findIndex((p) => p.id === participationId);
+	return index === -1 ? undefined : index + 1;
 }
 
 /** Danish one-line summary of a booking, as used in notifications. */
@@ -330,10 +366,7 @@ export async function runBookingAutomation({
 		const labelDa = dateLabel(ms, centerTimeZone, "da-DK");
 
 		if (dryRun) {
-			const occ = occupancyLabel(
-				cls.numberOfParticipants,
-				cls.maximumNumberOfParticipants,
-			);
+			const occ = occupancyLabel(cls);
 			const full = cls.hasSeatsLeft === false;
 			log(
 				`[dry-run] Would ${rebookRequested ? "rebook" : "book"}: ${timeLabel} on ${labelEn}${occ}${full ? " (WAITING LIST)" : ""}`,
@@ -414,10 +447,7 @@ export async function runBookingAutomation({
 		let occ = "";
 		try {
 			const detail = await getClassDetail(token, cls.id);
-			occ = occupancyLabel(
-				detail.numberOfParticipants,
-				detail.maximumNumberOfParticipants,
-			);
+			occ = occupancyLabel(detail);
 			trackedHere = (detail.participants ?? [])
 				.filter((p) => people[String(p.participantId)])
 				.map((p) => people[String(p.participantId)] as string)

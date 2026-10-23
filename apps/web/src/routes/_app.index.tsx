@@ -140,7 +140,9 @@ function ClassRow({ cls }: { cls: UpcomingClass }) {
 		? { label: "Springes over", color: "gray" }
 		: view.state === "cancelled" && view.rebookPending
 			? { label: "Genbookes", color: "blue" }
-			: STATE_BADGE[view.state];
+			: view.state === "waitlist" && view.waitlistPosition
+				? { label: `Venteliste (#${view.waitlistPosition})`, color: "yellow" }
+				: STATE_BADGE[view.state];
 	const held = view.state === "booked" || view.state === "waitlist";
 
 	async function act(fn: () => Promise<unknown>, optimistic?: typeof patch) {

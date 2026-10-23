@@ -37,10 +37,11 @@ export type ClazzMobile = {
 };
 
 export type Participant = {
-	id: number;
+	id: number; // participationId
 	participantId: number;
 	participantName: string;
 	status: ParticipationStatus;
+	signedUpAt?: string; // ISO-8601; orders the waiting list
 };
 
 // GET /api/Classes/{classId} — ClazzMobile plus the attendee list
@@ -50,6 +51,7 @@ export type ClazzDetail = ClazzMobile & {
 
 export type ParticipationStatus =
 	| "SignedUp"
+	| "OnWaitingList"
 	| "OptedOut"
 	| "OptedOutTooLate"
 	| "OnTime"

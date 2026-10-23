@@ -1,12 +1,16 @@
 import "@tanstack/react-start/server-only";
 import {
 	ApiError,
+	getClassDetail,
 	getClasses,
 	getMyBookings,
 	login,
 	toApiDateTime,
 } from "@booking/core/api";
-import { getTimePartsInZone } from "@booking/core/automation";
+import {
+	getTimePartsInZone,
+	waitingListPosition,
+} from "@booking/core/automation";
 import { and, eq, isNotNull, max } from "drizzle-orm";
 
 import { db } from "#/db/index.ts";
@@ -103,6 +107,32 @@ export function loadBookings(user: User, { fresh = false } = {}) {
 		() =>
 			withBookingToken(user, (token) => getMyBookings(token, user.bbAccountId)),
 		{ version: lastRun?.id ?? 0, fresh },
+	);
+}
+
+const WAITLIST_TTL_MS = 5 * 60_000;
+
+/**
+ * The user's position on a class's waiting list (1-based), from the class's participant
+ * list. One request per waitlisted class, cached for 5 minutes (refetched when `fresh`).
+ * Only the number is kept: the list holds other members' personal data.
+ */
+export function loadWaitingListPosition(
+	user: User,
+	classId: number,
+	participationId: number,
+	{ fresh = false } = {},
+) {
+	return cached(
+		`waitlist:${user.id}:${classId}`,
+		WAITLIST_TTL_MS,
+		async () => {
+			const detail = await withBookingToken(user, (token) =>
+				getClassDetail(token, classId),
+			);
+			return waitingListPosition(detail.participants ?? [], participationId);
+		},
+		{ fresh },
 	);
 }
 
