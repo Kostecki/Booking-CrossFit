@@ -18,7 +18,10 @@ RUN pnpm --filter @booking/web build \
 	&& CI=true pnpm install --frozen-lockfile --prod
 
 FROM base AS runtime
+# DEP0169: web-push (latest, 3.6.7) still calls url.parse() on push endpoints; harmless,
+# so that one warning is silenced and all others still show.
 ENV NODE_ENV=production \
+	NODE_OPTIONS=--disable-warning=DEP0169 \
 	PORT=3000 \
 	DATA_DIR=/data \
 	MIGRATIONS_DIR=/app/apps/web/drizzle
