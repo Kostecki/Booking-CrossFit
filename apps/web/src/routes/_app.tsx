@@ -35,7 +35,12 @@ export const Route = createFileRoute("/_app")({
 });
 
 // Leave room for the floating dock and the iPhone home-indicator area.
-const TAB_BAR_HEIGHT = "calc(76px + env(safe-area-inset-bottom))";
+// Gap below the floating dock. On iPhones it reaches part-way into the home-indicator
+// area (like iOS's own floating tab bars) instead of stacking the whole inset (~34px)
+// on top of the margin; elsewhere it stays 8px.
+const DOCK_BOTTOM_GAP = "max(8px, calc(env(safe-area-inset-bottom) - 16px))";
+// Dock (60px) + top padding (8px) + bottom gap.
+const TAB_BAR_HEIGHT = `calc(68px + ${DOCK_BOTTOM_GAP})`;
 
 const tabs = [
 	{ to: "/", label: "Bookinger", icon: IconCalendarEvent },
@@ -110,7 +115,7 @@ function Layout() {
 			</AppShell.Main>
 			<AppShell.Footer
 				style={{
-					padding: "8px 12px calc(8px + env(safe-area-inset-bottom))",
+					padding: `8px 12px ${DOCK_BOTTOM_GAP}`,
 					background: "transparent",
 					border: 0,
 				}}
