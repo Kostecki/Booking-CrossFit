@@ -135,9 +135,12 @@ function ClassRow({ cls }: { cls: UpcomingClass }) {
 	const [patch, setPatch] =
 		useState<Partial<Pick<UpcomingClass, "skipped" | "rebookPending">>>();
 	const view = { ...cls, ...patch };
+	// One pill per row: a cancelled class reads "Genbookes" once a rebooking is queued.
 	const badge = view.skipped
 		? { label: "Springes over", color: "gray" }
-		: STATE_BADGE[view.state];
+		: view.state === "cancelled" && view.rebookPending
+			? { label: "Genbookes", color: "blue" }
+			: STATE_BADGE[view.state];
 	const held = view.state === "booked" || view.state === "waitlist";
 
 	async function act(fn: () => Promise<unknown>, optimistic?: typeof patch) {
@@ -238,9 +241,6 @@ function ClassRow({ cls }: { cls: UpcomingClass }) {
 							{cls.occupancy ? ` (${cls.occupancy})` : ""}
 						</Text>
 						<StatusBadge label={badge.label} color={badge.color} />
-						{view.rebookPending && !view.skipped && (
-							<StatusBadge label="Genbookes" color="blue" />
-						)}
 					</Group>
 				</Stack>
 				{action}
