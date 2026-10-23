@@ -28,9 +28,9 @@ export const Route = createRootRoute({
 			{ name: "apple-mobile-web-app-status-bar-style", content: "default" },
 		],
 		links: [
-			{ rel: "manifest", href: "/manifest.webmanifest" },
-			{ rel: "icon", type: "image/png", href: "/favicon.png" },
-			{ rel: "apple-touch-icon", href: "/icons/apple-touch-icon.png" },
+			{ rel: "manifest", href: "/manifest.webmanifest?v=2" },
+			{ rel: "icon", type: "image/png", href: "/favicon-574d42fb.png" },
+			{ rel: "apple-touch-icon", href: "/icons/apple-touch-icon-37f16848.png" },
 		],
 	}),
 	shellComponent: RootDocument,

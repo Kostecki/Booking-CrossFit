@@ -11,7 +11,7 @@ self.addEventListener("push", (event) => {
 	event.waitUntil(
 		self.registration.showNotification(payload.title ?? "CrossFit Booking", {
 			body: payload.body ?? "",
-			icon: "/icons/icon-192.png",
+			icon: "/icons/icon-192-0d07de97.png",
 			data: { url: payload.url ?? "/" },
 		}),
 	);
