@@ -199,9 +199,12 @@ function Worker({
 				label="Status"
 				right={
 					<Badge color={alive ? "green" : "red"} variant="light">
-						{heartbeat
-							? `${alive ? "Kører" : "Ikke set"} · ${formatDateTime(heartbeat.at)}`
-							: "Aldrig set"}
+						{/* Whether the worker process is up, not whether it's booking */}
+						{!heartbeat
+							? "Aldrig set"
+							: alive
+								? "Online"
+								: `Offline · sidst set ${formatDateTime(heartbeat.at)}`}
 					</Badge>
 				}
 			/>
