@@ -4,7 +4,7 @@
 # "node" user): sudo chown -R 1000:1000 "$DATA_DIR/data"
 services:
   web:
-    image: ghcr.io/kostecki/booking-crossfit:${IMAGE_TAG:-latest}
+    image: ghcr.io/kostecki/booking-crossfit:latest
     restart: unless-stopped
     container_name: booking-crossfit
     hostname: ${APP_HOSTNAME:-booking-crossfit}
@@ -29,7 +29,7 @@ services:
       - "nautical-backup.group=booking-crossfit"
 
   worker:
-    image: ghcr.io/kostecki/booking-crossfit:${IMAGE_TAG:-latest}
+    image: ghcr.io/kostecki/booking-crossfit:latest
     restart: unless-stopped
     container_name: booking-crossfit-worker
     command: ["node", "src/worker/index.ts"]

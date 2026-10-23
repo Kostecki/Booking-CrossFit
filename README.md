@@ -100,7 +100,7 @@ Setup:
    - `DATA_DIR`
    - `APP_ENCRYPTION_KEY`
    - `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`
-   - optionally `IMAGE_TAG` (e.g. `multi-user-pwa` to try a branch), `APP_PORT`, `DRY_RUN=1`
+   - optionally `APP_PORT`, `DRY_RUN=1`
 3. Set the repo variables `TS_OAUTH_CLIENT_ID`, `TS_HOST`, `KOMODO_PORT`, `KOMODO_STACK_ID` and the secrets `KOMODO_API_KEY`, `KOMODO_API_SECRET`.
 4. In Pangolin, add a resource for the web service. It must be HTTPS: service workers, Web Push and the `Secure` session cookie all need it. The app has its own login, so Pangolin auth isn't needed in front of it.
 
