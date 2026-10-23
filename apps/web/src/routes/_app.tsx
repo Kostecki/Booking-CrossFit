@@ -35,10 +35,11 @@ export const Route = createFileRoute("/_app")({
 });
 
 // Leave room for the floating dock and the iPhone home-indicator area.
-// Gap below the floating dock. On iPhones it reaches part-way into the home-indicator
-// area (like iOS's own floating tab bars) instead of stacking the whole inset (~34px)
-// on top of the margin: 10px on Face ID iPhones, 8px elsewhere.
-const DOCK_BOTTOM_GAP = "max(8px, calc(env(safe-area-inset-bottom) - 24px))";
+// Gap below the floating dock: 8px where there's no inset. On Face ID iPhones it
+// comes out at -8px, deliberately: padding clamps it to 0, while the bar height
+// (below) shrinks by 8px, so the dock sits 8px lower, down over the home-indicator
+// area. Tuned by eye on a real iPhone, where this matched native floating tab bars.
+const DOCK_BOTTOM_GAP = "calc(8px - min(16px, env(safe-area-inset-bottom)))";
 // Dock (60px) + top padding (8px) + bottom gap.
 const TAB_BAR_HEIGHT = `calc(68px + ${DOCK_BOTTOM_GAP})`;
 
