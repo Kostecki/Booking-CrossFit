@@ -120,7 +120,7 @@ export function matchingSlot(
 	);
 }
 
-const DA_WEEKDAYS = [
+export const DA_WEEKDAYS = [
 	"Søndag",
 	"Mandag",
 	"Tirsdag",
@@ -129,7 +129,7 @@ const DA_WEEKDAYS = [
 	"Fredag",
 	"Lørdag",
 ];
-const DA_MONTHS = [
+export const DA_MONTHS = [
 	"Januar",
 	"Februar",
 	"Marts",

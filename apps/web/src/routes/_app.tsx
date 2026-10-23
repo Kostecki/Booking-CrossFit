@@ -10,6 +10,7 @@ import {
 } from "@mantine/core";
 import {
 	IconCalendarEvent,
+	IconChartBar,
 	IconHistory,
 	IconListCheck,
 	IconSettings,
@@ -47,6 +48,7 @@ const TAB_BAR_HEIGHT = `calc(68px + ${DOCK_BOTTOM_GAP})`;
 const tabs = [
 	{ to: "/", label: "Bookinger", icon: IconCalendarEvent },
 	{ to: "/schedule", label: "Auto-booking", icon: IconListCheck },
+	{ to: "/stats", label: "Statistik", icon: IconChartBar },
 	{ to: "/history", label: "Historik", icon: IconHistory },
 	{ to: "/settings", label: "Indstillinger", icon: IconSettings },
 ] as const;
