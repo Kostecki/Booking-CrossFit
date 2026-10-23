@@ -43,6 +43,7 @@ Passwords and tokens are stored encrypted (AES-256-GCM) so the worker can log in
 pnpm install
 cp apps/web/.env.example apps/web/.env    # then fill in the values
 pnpm dev                                  # web (http://localhost:3000) + worker
+pnpm dev --host                           # same, reachable from your phone on the LAN
 pnpm test                                 # core unit tests
 ```
 
