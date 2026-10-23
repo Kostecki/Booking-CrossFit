@@ -169,7 +169,7 @@ async function main(): Promise<void> {
 		await sendPushoverNotification({
 			token: PUSHOVER_TOKEN,
 			user: PUSHOVER_USER,
-			title: "CrossFit Bookinger",
+			title: "Auto CFR: Bookinger",
 			message: `Booket ${newlyBooked.length} ${trainingWord}:\n${newlyBooked.map(formatBookedDa).join("\n")}`,
 		});
 	}
@@ -186,7 +186,7 @@ async function run(): Promise<void> {
 				await sendPushoverNotification({
 					token: PUSHOVER_TOKEN,
 					user: PUSHOVER_USER,
-					title: "CrossFit booking fejl",
+					title: "Auto CFR: Booking fejlede",
 					message: `Fejl: ${String(error)}`,
 				});
 			}

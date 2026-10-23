@@ -76,7 +76,7 @@ function Layout() {
 			>
 				<Group h={52} justify="space-between" wrap="nowrap">
 					<Title order={4} style={{ flexShrink: 0 }}>
-						CrossFit Booking
+						Auto CFR
 					</Title>
 					<UnstyledButton
 						component={Link}

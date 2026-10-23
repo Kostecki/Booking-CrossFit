@@ -1,4 +1,4 @@
-# booking-crossfit
+# Auto CFR
 
 Auto-books recurring **CrossFit Roskilde** classes through the gym's BookingBoard API.
 

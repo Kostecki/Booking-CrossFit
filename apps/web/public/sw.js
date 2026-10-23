@@ -9,7 +9,7 @@ self.addEventListener("activate", (event) =>
 self.addEventListener("push", (event) => {
 	const payload = event.data ? event.data.json() : {};
 	event.waitUntil(
-		self.registration.showNotification(payload.title ?? "CrossFit Booking", {
+		self.registration.showNotification(payload.title ?? "Auto CFR", {
 			body: payload.body ?? "",
 			icon: "/icons/icon-192-0d07de97.png",
 			data: { url: payload.url ?? "/" },

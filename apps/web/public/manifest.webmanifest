@@ -1,12 +1,12 @@
 {
-	"name": "CrossFit Booking",
-	"short_name": "Booking",
+	"name": "Auto CFR",
+	"short_name": "Auto CFR",
 	"description": "Automatisk booking af dine faste hold hos CrossFit Roskilde",
 	"lang": "da",
 	"start_url": "/",
 	"scope": "/",
 	"display": "standalone",
-	"background_color": "#f8f9fa",
+	"background_color": "#161c24",
 	"theme_color": "#161c24",
 	"icons": [
 		{
