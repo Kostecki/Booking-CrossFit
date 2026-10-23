@@ -1,3 +1,4 @@
+import { nextRunLabel } from "@booking/core/runTimes";
 import {
 	ActionIcon,
 	Button,
@@ -28,6 +29,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { Fragment, useMemo, useState } from "react";
 
 import { notifyError } from "#/components/notify.ts";
+import { useRunTimes } from "#/components/runSchedule.ts";
 import {
 	getTimetable,
 	type SlotOption,
@@ -259,13 +261,14 @@ function AutoBookingStatus({
 	hasClasses: boolean;
 	onToggle: (active: boolean) => void;
 }) {
+	const runTimes = useRunTimes();
 	const look = {
 		active: {
 			color: "green",
 			icon: <IconBolt size={20} />,
 			title: "Auto-booking er aktiv",
 			text: hasClasses
-				? `Næste booking: ${nextRunLabel()}`
+				? `Næste booking: ${nextRunLabel(runTimes, Date.now(), "Europe/Copenhagen")}`
 				: "Vælg hold nedenfor, så bookes de automatisk.",
 		},
 		paused: {
@@ -310,16 +313,4 @@ function AutoBookingStatus({
 			</Group>
 		</Card>
 	);
-}
-
-// The daily run starts at 19:00 Copenhagen time.
-function nextRunLabel(): string {
-	const hour = Number(
-		new Intl.DateTimeFormat("en-GB", {
-			timeZone: "Europe/Copenhagen",
-			hour: "numeric",
-			hourCycle: "h23",
-		}).format(new Date()),
-	);
-	return hour < 19 ? "i aften kl. 19" : "i morgen kl. 19";
 }

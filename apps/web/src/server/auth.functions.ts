@@ -16,14 +16,15 @@ export type CurrentUser = {
 	profileImageUrl: string | null;
 	email: string;
 	status: "active" | "paused" | "needs_reauth";
+	isAdmin: boolean;
 };
 
 export const getCurrentUser = createServerFn({ method: "GET" }).handler(
 	async (): Promise<CurrentUser | null> => {
 		const user = getSessionUser();
 		if (!user) return null;
-		const { id, fullName, profileImageUrl, email, status } = user;
-		return { id, fullName, profileImageUrl, email, status };
+		const { id, fullName, profileImageUrl, email, status, isAdmin } = user;
+		return { id, fullName, profileImageUrl, email, status, isAdmin };
 	},
 );
 

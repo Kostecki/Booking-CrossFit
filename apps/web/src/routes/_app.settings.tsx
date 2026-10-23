@@ -1,6 +1,12 @@
-import { Button, Group, Modal, Stack, Text } from "@mantine/core";
+import { getTimePartsInZone } from "@booking/core/automation";
+import { Anchor, Button, Group, Modal, Stack, Text } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
-import { createFileRoute, useRouter } from "@tanstack/react-router";
+import { IconChevronRight } from "@tabler/icons-react";
+import {
+	createFileRoute,
+	useNavigate,
+	useRouter,
+} from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 
@@ -16,6 +22,8 @@ export const Route = createFileRoute("/_app/settings")({
 
 function Settings() {
 	const router = useRouter();
+	const navigate = useNavigate();
+	const { user } = Route.useRouteContext();
 	const doLogout = useServerFn(logout);
 	const doDelete = useServerFn(deleteAccount);
 	const { publicKey } = Route.useLoaderData();
@@ -25,6 +33,18 @@ function Settings() {
 	return (
 		<Stack gap="lg">
 			<NotificationsGroup publicKey={publicKey} />
+
+			{user.isAdmin && (
+				<SettingsGroup label="Admin">
+					<SettingsRow
+						label="Kørselstider, brugere og fejl"
+						right={
+							<IconChevronRight size={18} color="var(--mantine-color-dimmed)" />
+						}
+						onClick={() => navigate({ to: "/admin" })}
+					/>
+				</SettingsGroup>
+			)}
 
 			<SettingsGroup
 				label="Konto"
@@ -43,6 +63,8 @@ function Settings() {
 					onClick={confirm.open}
 				/>
 			</SettingsGroup>
+
+			<Version />
 
 			<Modal
 				opened={confirmOpened}
@@ -75,5 +97,36 @@ function Settings() {
 				</Group>
 			</Modal>
 		</Stack>
+	);
+}
+
+// Built by hand, so server and browser render the same text (see danishDateLabel).
+const BUILT = (() => {
+	const { year, month, day, hour, minute } = getTimePartsInZone(
+		Date.parse(__BUILD_TIME__),
+		"Europe/Copenhagen",
+	);
+	const pad = (n: number) => String(n).padStart(2, "0");
+	return `${day}/${month}/${year} ${pad(hour)}:${pad(minute)}`;
+})();
+
+function Version() {
+	const short = __COMMIT_SHA__.slice(0, 7);
+	return (
+		<Text size="xs" c="dimmed" ta="center">
+			Version{" "}
+			{__COMMIT_SHA__ === "dev" ? (
+				"dev"
+			) : (
+				<Anchor
+					href={`https://github.com/Kostecki/Booking-CrossFit/commit/${__COMMIT_SHA__}`}
+					target="_blank"
+					inherit
+				>
+					{short}
+				</Anchor>
+			)}{" "}
+			· bygget {BUILT}
+		</Text>
 	);
 }

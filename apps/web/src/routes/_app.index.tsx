@@ -1,3 +1,4 @@
+import { runScheduleLabel } from "@booking/core/runTimes";
 import {
 	Badge,
 	Button,
@@ -19,6 +20,7 @@ import { useRef, useState } from "react";
 import { ConfirmButton } from "#/components/ConfirmButton.tsx";
 import { takeFreshRequest } from "#/components/freshness.ts";
 import { notifyError, notifyInfo } from "#/components/notify.ts";
+import { useRunTimes } from "#/components/runSchedule.ts";
 import { requestRun } from "#/server/runs.functions.ts";
 import {
 	getUpcoming,
@@ -46,6 +48,7 @@ const STATE_BADGE: Record<
 function Upcoming() {
 	const { user } = Route.useRouteContext();
 	const { classes, hasSchedule } = Route.useLoaderData();
+	const runTimes = useRunTimes();
 	// What's actually held on BookingBoard comes first, apart from planned/cancelled/skipped.
 	const isHeld = (cls: UpcomingClass) =>
 		cls.state === "booked" || cls.state === "waitlist";
@@ -93,7 +96,7 @@ function Upcoming() {
 				<Stack gap={0} miw={0}>
 					<Title order={4}>Dine bookinger</Title>
 					<Text size="xs" c="dimmed">
-						Bookes automatisk hver aften kl. 19
+						Bookes automatisk {runScheduleLabel(runTimes)}
 					</Text>
 				</Stack>
 				<Button

@@ -24,6 +24,7 @@ import {
 import { useEffect } from "react";
 
 import { requestFreshData } from "#/components/freshness.ts";
+import { getRunSchedule } from "#/server/admin.functions.ts";
 
 // Everything under this layout requires a logged-in user.
 export const Route = createFileRoute("/_app")({
@@ -31,6 +32,7 @@ export const Route = createFileRoute("/_app")({
 		if (!context.user) throw redirect({ to: "/login" });
 		return { user: context.user };
 	},
+	loader: () => getRunSchedule(),
 	component: Layout,
 });
 

@@ -65,6 +65,7 @@ export type ClassRegistration = {
 	className: string;
 	begins: string; // ISO-8601
 	ends?: string;
+	signedUpAt?: string; // ISO-8601
 	status: ParticipationStatus;
 	participantId?: number;
 	participantName?: string;

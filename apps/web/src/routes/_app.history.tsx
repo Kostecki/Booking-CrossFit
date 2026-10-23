@@ -1,7 +1,9 @@
+import { runScheduleLabel } from "@booking/core/runTimes";
 import { Badge, Card, Group, Loader, Stack, Text, Title } from "@mantine/core";
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useEffect } from "react";
 
+import { useRunTimes } from "#/components/runSchedule.ts";
 import { getRuns, type RunSummary } from "#/server/runs.functions.ts";
 
 export const Route = createFileRoute("/_app/history")({
@@ -32,6 +34,7 @@ const formatTime = (iso: string) =>
 
 function Activity() {
 	const runs = Route.useLoaderData();
+	const runTimes = useRunTimes();
 	const router = useRouter();
 	const inProgress = runs.some(
 		(r) => r.status === "queued" || r.status === "running",
@@ -49,9 +52,9 @@ function Activity() {
 			<Stack gap={0} mb="xs">
 				<Title order={4}>Bookinghistorik</Title>
 				<Text size="xs" c="dimmed">
-					Dine hold bookes automatisk hver aften kl. 19 og når du trykker "Book
-					nu". <br /> Et nyt forsøg står som "Venter" et øjeblik, før det
-					starter.
+					Dine hold bookes automatisk {runScheduleLabel(runTimes)} og når du
+					trykker "Book nu". <br /> Et nyt forsøg står som "Venter" et øjeblik,
+					før det starter.
 				</Text>
 			</Stack>
 			{runs.length === 0 && (

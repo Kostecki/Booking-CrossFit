@@ -6,6 +6,7 @@
 	"exports": {
 		"./api": "./bookingApi.ts",
 		"./automation": "./lib/bookingAutomation.ts",
+		"./runTimes": "./lib/runTimes.ts",
 		"./types": "./types.ts"
 	},
 	"scripts": {
