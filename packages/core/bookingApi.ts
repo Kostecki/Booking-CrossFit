@@ -5,7 +5,6 @@ import type {
 	ClazzMobile,
 	Credentials,
 	ParticipateDto,
-	PushoverParams,
 } from "./types.ts";
 
 const BASE_URL =
@@ -185,23 +184,4 @@ export async function cancelBooking(
 		token,
 		body,
 	});
-}
-
-export async function sendPushoverNotification({
-	token,
-	user,
-	message,
-	title,
-}: PushoverParams): Promise<void> {
-	const response = await fetch("https://api.pushover.net/1/messages.json", {
-		method: "POST",
-		headers: { "Content-Type": "application/json" },
-		body: JSON.stringify({ token, user, message, title }),
-	});
-
-	if (!response.ok) {
-		throw new Error(
-			`Pushover notification failed: ${response.status} ${response.statusText}`,
-		);
-	}
 }

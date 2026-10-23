@@ -123,18 +123,6 @@ test("books the next classes matching any slot until the total cap", async () =>
 	});
 });
 
-test("an optional weekly cap leaves the remaining slots of a week unbooked", async () => {
-	await withFakeApi([], schedule, async () => {
-		const booked = await runBookingAutomation(
-			config({ slots, maxSessionsPerWeek: 2 }),
-		);
-		assert.deepEqual(
-			booked.map((b) => b.classId),
-			[1, 2, 4, 5, 7],
-		);
-	});
-});
-
 test("a skipped class is never booked and the next matching class takes its spot", async () => {
 	await withFakeApi([], schedule, async (requests) => {
 		const booked = await runBookingAutomation(
@@ -181,7 +169,6 @@ test("a one-time request rebooks a cancelled class before later classes", async 
 			const booked = await runBookingAutomation(
 				config({
 					slots: slots.slice(0, 2),
-					maxSessionsPerWeek: 2,
 					pendingRebookClassIds: [1458123],
 				}),
 			);

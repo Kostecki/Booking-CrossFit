@@ -77,10 +77,3 @@ export type ParticipateDto = {
 	accountId: number;
 	status: ParticipationStatus;
 };
-
-export type PushoverParams = {
-	token: string;
-	user: string;
-	message: string;
-	title?: string;
-};
