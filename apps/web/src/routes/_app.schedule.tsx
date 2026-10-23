@@ -12,10 +12,17 @@ import {
 	Stack,
 	Switch,
 	Text,
+	ThemeIcon,
 	Title,
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
-import { IconPlus, IconX } from "@tabler/icons-react";
+import {
+	IconAlertTriangle,
+	IconBolt,
+	IconPlayerPause,
+	IconPlus,
+	IconX,
+} from "@tabler/icons-react";
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { Fragment, useMemo, useState } from "react";
@@ -82,30 +89,18 @@ function Schedule() {
 
 	return (
 		<Stack>
-			<Card withBorder>
-				<Stack gap="xs">
-					<Switch
-						label="Automatisk booking"
-						checked={user.status === "active"}
-						disabled={user.status === "needs_reauth"}
-						onChange={async (event) => {
-							try {
-								await savePaused({
-									data: { paused: !event.currentTarget.checked },
-								});
-								await router.invalidate();
-							} catch (error) {
-								notifyError(error);
-							}
-						}}
-					/>
-					<Text size="sm" c="dimmed">
-						{user.status === "paused"
-							? "Slået fra. Der bookes ikke automatisk, før du slår det til igen. Dine nuværende bookinger bliver ikke rørt."
-							: "Hver aften kl. 19 bookes dine næste faste hold, indtil du har 5 bookinger – det maksimale CrossFit Roskilde tillader."}
-					</Text>
-				</Stack>
-			</Card>
+			<AutoBookingStatus
+				status={user.status}
+				hasClasses={selected.length > 0}
+				onToggle={async (active) => {
+					try {
+						await savePaused({ data: { paused: !active } });
+						await router.invalidate();
+					} catch (error) {
+						notifyError(error);
+					}
+				}}
+			/>
 
 			<Title order={4}>Mine faste hold</Title>
 			{selected.length === 0 ? (
@@ -149,6 +144,10 @@ function Schedule() {
 					Sådan virker det
 				</Text>
 				<List size="sm" c="dimmed" spacing={2}>
+					<List.Item>
+						Der bookes op til 5 hold ad gangen – det maksimale CrossFit Roskilde
+						tillader.
+					</List.Item>
 					<List.Item>De tidligste hold bookes først.</List.Item>
 					<List.Item>Er et hold fuldt, kommer du på venteliste.</List.Item>
 					<List.Item>
@@ -248,4 +247,79 @@ function AddClassesDrawer({
 			</Stack>
 		</Drawer>
 	);
+}
+
+// The page's headline: whether auto-booking runs, and when it next books.
+function AutoBookingStatus({
+	status,
+	hasClasses,
+	onToggle,
+}: {
+	status: "active" | "paused" | "needs_reauth";
+	hasClasses: boolean;
+	onToggle: (active: boolean) => void;
+}) {
+	const look = {
+		active: {
+			color: "green",
+			icon: <IconBolt size={20} />,
+			title: "Auto-booking er aktiv",
+			text: hasClasses
+				? `Næste booking: ${nextRunLabel()}`
+				: "Vælg hold nedenfor, så bookes de automatisk.",
+		},
+		paused: {
+			color: "gray",
+			icon: <IconPlayerPause size={20} />,
+			title: "Auto-booking er sat på pause",
+			text: "Der bookes ikke automatisk, før det aktiveres igen.",
+		},
+		needs_reauth: {
+			color: "red",
+			icon: <IconAlertTriangle size={20} />,
+			title: "Auto-booking er stoppet",
+			text: "Log ind igen for at fortsætte.",
+		},
+	}[status];
+
+	return (
+		<Card
+			withBorder
+			// Paused stays neutral but white, so it stands out from the grey page.
+			bg={status === "paused" ? "white" : `${look.color}.0`}
+			style={{
+				borderColor: `var(--mantine-color-${look.color}-${status === "paused" ? 3 : 2})`,
+			}}
+		>
+			<Group wrap="nowrap" gap="sm">
+				<ThemeIcon variant="light" color={look.color} radius="xl" size={36}>
+					{look.icon}
+				</ThemeIcon>
+				<Stack gap={0} style={{ flex: 1, minWidth: 0 }}>
+					<Text fw={600}>{look.title}</Text>
+					<Text size="sm" c="dimmed">
+						{look.text}
+					</Text>
+				</Stack>
+				<Switch
+					aria-label="Automatisk booking"
+					checked={status === "active"}
+					disabled={status === "needs_reauth"}
+					onChange={(event) => onToggle(event.currentTarget.checked)}
+				/>
+			</Group>
+		</Card>
+	);
+}
+
+// The daily run starts at 19:00 Copenhagen time.
+function nextRunLabel(): string {
+	const hour = Number(
+		new Intl.DateTimeFormat("en-GB", {
+			timeZone: "Europe/Copenhagen",
+			hour: "numeric",
+			hourCycle: "h23",
+		}).format(new Date()),
+	);
+	return hour < 19 ? "i aften kl. 19" : "i morgen kl. 19";
 }
