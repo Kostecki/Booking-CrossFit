@@ -1,7 +1,12 @@
 import { getTimePartsInZone } from "@booking/core/automation";
 import { Anchor, Button, Group, Modal, Stack, Text } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
-import { createFileRoute, useRouter } from "@tanstack/react-router";
+import { IconChevronRight } from "@tabler/icons-react";
+import {
+	createFileRoute,
+	useNavigate,
+	useRouter,
+} from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 
@@ -17,6 +22,8 @@ export const Route = createFileRoute("/_app/settings")({
 
 function Settings() {
 	const router = useRouter();
+	const navigate = useNavigate();
+	const { user } = Route.useRouteContext();
 	const doLogout = useServerFn(logout);
 	const doDelete = useServerFn(deleteAccount);
 	const { publicKey } = Route.useLoaderData();
@@ -26,6 +33,18 @@ function Settings() {
 	return (
 		<Stack gap="lg">
 			<NotificationsGroup publicKey={publicKey} />
+
+			{user.isAdmin && (
+				<SettingsGroup label="Admin">
+					<SettingsRow
+						label="Kørselstider, brugere og fejl"
+						right={
+							<IconChevronRight size={18} color="var(--mantine-color-dimmed)" />
+						}
+						onClick={() => navigate({ to: "/admin" })}
+					/>
+				</SettingsGroup>
+			)}
 
 			<SettingsGroup
 				label="Konto"

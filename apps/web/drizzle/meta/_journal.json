@@ -15,6 +15,13 @@
       "when": 1792705481710,
       "tag": "0001_profile_image",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1792789190802,
+      "tag": "0002_admin_settings",
+      "breakpoints": true
     }
   ]
 }

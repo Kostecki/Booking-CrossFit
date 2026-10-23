@@ -1,13 +1,20 @@
-// Booking worker: the daily 19:00 run for every active user, plus on-demand runs
-// queued from the app. Run with: node --env-file-if-exists=.env src/worker/index.ts
+// Booking worker: the daily run(s) for every active user, at the times set in the admin
+// page (app_settings.runTimes, default 19:00), plus on-demand runs queued from the app. Run with: node --env-file-if-exists=.env src/worker/index.ts
 //
 // Flags (for testing): --daily-now runs the daily job once at startup; --no-jitter
 // skips the random delays. DRY_RUN=1 computes and logs without booking.
+import { runTimeCron } from "@booking/core/runTimes";
 import { Cron } from "croner";
 import { asc, eq } from "drizzle-orm";
 
 import { db } from "#/db/index.ts";
 import { runs, scheduleSlots, users } from "#/db/schema.ts";
+import {
+	deleteSetting,
+	getRunTimes,
+	getSetting,
+	setSetting,
+} from "#/server/appSettings.ts";
 import { TIME_ZONE } from "#/server/bookingboard.ts";
 
 import { loadUser, runForUser } from "./runForUser.ts";
@@ -145,36 +152,83 @@ db.update(runs)
 	.run();
 
 let dailyInProgress = false;
-const daily = new Cron(
-	"0 19 * * *",
-	{ timezone: TIME_ZONE, protect: true },
-	async () => {
-		dailyInProgress = true;
-		try {
-			await runDaily();
-		} catch (error) {
-			console.error("Daily run failed", error);
-		} finally {
-			dailyInProgress = false;
-		}
-	},
-);
-const queueTimer = setInterval(() => {
+
+/** Start a daily run for everyone, unless one is already going (runs are idempotent). */
+async function startDaily(reason: string): Promise<void> {
+	if (dailyInProgress) {
+		console.log(`${reason}: skipped, a daily run is already in progress`);
+		return;
+	}
+	console.log(`${reason}: starting daily run`);
+	dailyInProgress = true;
+	try {
+		await runDaily();
+	} catch (error) {
+		console.error("Daily run failed", error);
+	} finally {
+		dailyInProgress = false;
+	}
+}
+
+// One cron per run time; rebuilt when an admin changes the times.
+let runTimes: string[] = [];
+let crons: Cron[] = [];
+
+function scheduleRuns(): void {
+	const times = getRunTimes();
+	if (times.join() === runTimes.join()) return;
+	for (const cron of crons) cron.stop();
+	runTimes = times;
+	crons = times.map(
+		(time) =>
+			new Cron(runTimeCron(time), { timezone: TIME_ZONE, protect: true }, () =>
+				startDaily(`Scheduled ${time}`),
+			),
+	);
+	console.log(
+		`Daily runs at ${times.join(", ")}. Next: ${nextRun()?.toISOString()}`,
+	);
+}
+
+const nextRun = () =>
+	crons
+		.map((cron) => cron.nextRun())
+		.filter((date) => date !== null)
+		.sort((a, b) => a.getTime() - b.getTime())[0];
+
+/** Every poll: pick up new run times and run-all requests, and report that we're alive. */
+function poll(): void {
+	scheduleRuns();
+	if (getSetting("runAllRequestedAt")) {
+		deleteSetting("runAllRequestedAt");
+		void startDaily("Requested by an admin");
+	}
+	setSetting("workerHeartbeat", {
+		at: new Date().toISOString(),
+		nextRun: nextRun()?.toISOString() ?? null,
+		dailyInProgress,
+	});
 	drainQueue().catch((error) => console.error("Queue failed", error));
+}
+
+const queueTimer = setInterval(() => {
+	try {
+		poll();
+	} catch (error) {
+		console.error("Poll failed", error);
+	}
 }, QUEUE_POLL_MS);
 
-console.log(
-	`Worker started. Next daily run: ${daily.nextRun()?.toISOString()}${dryRun ? " (DRY RUN)" : ""}`,
-);
-void drainQueue();
-if (process.argv.includes("--daily-now")) void daily.trigger();
+console.log(`Worker started.${dryRun ? " (DRY RUN)" : ""}`);
+poll();
+if (process.argv.includes("--daily-now")) void startDaily("--daily-now");
 
 for (const signal of ["SIGINT", "SIGTERM"] as const) {
 	process.on(signal, () => {
 		console.log(
 			`${signal}: stopping${dailyInProgress ? " (daily run interrupted)" : ""}`,
 		);
-		daily.stop();
+		for (const cron of crons) cron.stop();
 		clearInterval(queueTimer);
 		process.exit(0);
 	});

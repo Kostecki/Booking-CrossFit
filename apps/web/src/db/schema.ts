@@ -30,6 +30,8 @@ export const users = sqliteTable("users", {
 	status: text("status", { enum: ["active", "paused", "needs_reauth"] })
 		.notNull()
 		.default("active"),
+	// Set by hand (e.g. in Drizzle Gateway); unlocks the admin page.
+	isAdmin: integer("is_admin", { mode: "boolean" }).notNull().default(false),
 	createdAt: createdAt(),
 });
 
@@ -114,6 +116,15 @@ export const sessions = sqliteTable("sessions", {
 	userId: userId(),
 	expiresAt: integer("expires_at", { mode: "timestamp_ms" }).notNull(),
 	createdAt: createdAt(),
+});
+
+// App-wide settings and worker state, one JSON value per key (see server/appSettings.ts).
+export const appSettings = sqliteTable("app_settings", {
+	key: text("key").primaryKey(),
+	value: text("value").notNull(),
+	updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+		.notNull()
+		.default(sql`(unixepoch('subsec') * 1000)`),
 });
 
 export type User = typeof users.$inferSelect;
