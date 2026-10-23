@@ -30,7 +30,6 @@ Passwords and tokens are stored encrypted (AES-256-GCM) so the worker can log in
 |---|---|
 | `packages/core` | BookingBoard API client and booking logic (`@booking/core`), with unit tests |
 | `apps/web` | TanStack Start + Mantine app, SQLite (Drizzle), and the worker (`src/worker`) |
-| `script.ts` | The original single-user CLI, kept until the app takes over |
 
 ## Requirements
 
@@ -108,16 +107,6 @@ Setup:
 `nautical-backup` picks up both containers (group `booking-crossfit`). Keep `APP_ENCRYPTION_KEY` outside the backups.
 
 Locally, `docker compose up --build` builds the image through `compose.override.yaml`. It reads variables from the root `.env`.
-
-## Legacy CLI
-
-Until the cutover, `script.ts` still books for one account from the root `.env`:
-- `pnpm start` books.
-- `DRY_RUN=1 pnpm start` only logs.
-
-It reads the old env vars: `API_EMAIL`, `API_PASSWORD`, `CLASS_TITLE`, `TARGET_WEEKDAYS`, `TARGET_TIME`, `MAX_SESSIONS_PER_WEEK`, `MAX_TOTAL_SESSIONS`, `TRACKED_PEOPLE`, and Pushover.
-
-Its one-time rebookings live in `booking-requests.json`, with state in `rebook-state.json`. To find participant ids for `TRACKED_PEOPLE`, run `node --env-file=.env scripts/find-participants.ts <classId>`.
 
 ## Notes
 
