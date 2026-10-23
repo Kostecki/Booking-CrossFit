@@ -1,0 +1,31 @@
+{
+	"name": "Auto CFR",
+	"short_name": "Auto CFR",
+	"description": "Automatisk booking af dine faste hold hos CrossFit Roskilde",
+	"lang": "da",
+	"start_url": "/",
+	"scope": "/",
+	"display": "standalone",
+	"background_color": "#161c24",
+	"theme_color": "#161c24",
+	"icons": [
+		{
+			"src": "/icons/icon-192-0d07de97.png",
+			"sizes": "192x192",
+			"type": "image/png",
+			"purpose": "any"
+		},
+		{
+			"src": "/icons/icon-512-93c124c5.png",
+			"sizes": "512x512",
+			"type": "image/png",
+			"purpose": "any"
+		},
+		{
+			"src": "/icons/icon-maskable-512-328e5090.png",
+			"sizes": "512x512",
+			"type": "image/png",
+			"purpose": "maskable"
+		}
+	]
+}

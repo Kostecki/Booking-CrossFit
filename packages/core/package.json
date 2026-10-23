@@ -1,0 +1,14 @@
+{
+	"name": "@booking/core",
+	"version": "1.0.0",
+	"private": true,
+	"type": "module",
+	"exports": {
+		"./api": "./bookingApi.ts",
+		"./automation": "./lib/bookingAutomation.ts",
+		"./types": "./types.ts"
+	},
+	"scripts": {
+		"test": "node --test tests/*.test.ts"
+	}
+}

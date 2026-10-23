@@ -1,0 +1,45 @@
+# Web app + booking worker sharing one SQLite database in ${DATA_DIR}/data.
+# Komodo writes the stack's Environment to .env next to this file; see apps/web/.env.example
+# for what each variable does. The data folder must be owned by 1000:1000 (the image's
+# "node" user): sudo chown -R 1000:1000 "$DATA_DIR/data"
+services:
+  web:
+    image: ghcr.io/kostecki/booking-crossfit:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    container_name: booking-crossfit
+    hostname: ${APP_HOSTNAME:-booking-crossfit}
+    ports:
+      - "${APP_PORT:-3000}:3000"
+    environment: &env
+      APP_ENCRYPTION_KEY: ${APP_ENCRYPTION_KEY}
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY}
+      VAPID_SUBJECT: ${VAPID_SUBJECT}
+      DRY_RUN: ${DRY_RUN:-}
+      TZ: ${TZ:-Europe/Copenhagen}
+    volumes:
+      - ${DATA_DIR:-.}/data:/data
+    init: true
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/login').then(r => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+    labels:
+      - "nautical-backup.group=booking-crossfit"
+
+  worker:
+    image: ghcr.io/kostecki/booking-crossfit:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    container_name: booking-crossfit-worker
+    command: ["node", "src/worker/index.ts"]
+    environment: *env
+    volumes:
+      - ${DATA_DIR:-.}/data:/data
+    init: true
+    # Let the web service run the database migrations first.
+    depends_on:
+      web:
+        condition: service_healthy
+    labels:
+      - "nautical-backup.group=booking-crossfit"

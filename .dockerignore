@@ -1,0 +1,11 @@
+**/node_modules
+**/.output
+**/.nitro
+**/.tanstack
+**/data
+**/.env
+**/.env.*
+!**/.env.example
+.git
+*.log
+rebook-state.json

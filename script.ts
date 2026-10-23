@@ -1,6 +1,10 @@
 import { readFile, writeFile } from "node:fs/promises";
-import { getAccount, getMyBookings, login, sendPushoverNotification } from "./bookingApi.ts";
-import { runBookingAutomation } from "./lib/bookingAutomation.ts";
+import { getAccount, login, sendPushoverNotification } from "@booking/core/api";
+import {
+	findCompletedRebooks,
+	formatBookedDa,
+	runBookingAutomation,
+} from "@booking/core/automation";
 
 const bookingStateFile = new URL("./rebook-state.json", import.meta.url);
 const bookingRequestsFile = new URL("./booking-requests.json", import.meta.url);
@@ -20,11 +24,11 @@ async function readClassIds(file: URL, key: string): Promise<number[]> {
 			: undefined;
 	if (
 		!Array.isArray(ids) ||
-		!ids.every(
-			(id: unknown) => Number.isSafeInteger(id) && Number(id) > 0,
-		)
+		!ids.every((id: unknown) => Number.isSafeInteger(id) && Number(id) > 0)
 	) {
-		throw new Error(`${file.pathname} must contain ${key} as positive class IDs`);
+		throw new Error(
+			`${file.pathname} must contain ${key} as positive class IDs`,
+		);
 	}
 	return ids as number[];
 }
@@ -54,7 +58,9 @@ function intEnv(name: string, fallback: number): number {
 	if (raw === undefined || raw.trim() === "") return fallback;
 	const value = Number(raw);
 	if (!Number.isInteger(value) || value < 0) {
-		console.error(`Environment variable ${name} must be a non-negative integer`);
+		console.error(
+			`Environment variable ${name} must be a non-negative integer`,
+		);
 		process.exit(1);
 	}
 	return value;
@@ -83,7 +89,9 @@ function timeEnv(
 	const hour = match ? Number(match[1]) : Number.NaN;
 	const minute = match ? Number(match[2]) : Number.NaN;
 	if (!match || hour > 23 || minute > 59) {
-		console.error(`Environment variable ${name} must be a 24-hour time (HH:MM)`);
+		console.error(
+			`Environment variable ${name} must be a 24-hour time (HH:MM)`,
+		);
 		process.exit(1);
 	}
 	return { hour, minute };
@@ -129,26 +137,23 @@ async function main(): Promise<void> {
 		accountId: account.id,
 		centerTimeZone,
 		people,
-		classTitle,
-		targetWeekdays,
+		slots: targetWeekdays.map((weekday) => ({
+			classTitle,
+			weekday,
+			hour: targetHour,
+			minute: targetMinute,
+		})),
 		maxSessionsPerWeek,
 		maxTotalSessions,
-		targetHour,
-		targetMinute,
 		dryRun,
 		pendingRebookClassIds,
 	});
 
-	if (!dryRun && pendingRebookClassIds.length > 0) {
-		const current = await getMyBookings(token, account.id);
-		const newlyCompleted = pendingRebookClassIds.filter(
-			(classId) =>
-				current.some(
-					(b) =>
-						b.classId === classId &&
-						b.status !== "OptedOut" &&
-						b.status !== "OptedOutTooLate",
-				),
+	if (!dryRun) {
+		const newlyCompleted = await findCompletedRebooks(
+			token,
+			account.id,
+			pendingRebookClassIds,
 		);
 		if (newlyCompleted.length > 0) {
 			await writeFile(
@@ -164,8 +169,8 @@ async function main(): Promise<void> {
 		await sendPushoverNotification({
 			token: PUSHOVER_TOKEN,
 			user: PUSHOVER_USER,
-			title: "CrossFit Bookinger",
-			message: `Booket ${newlyBooked.length} ${trainingWord}:\n${newlyBooked.join("\n")}`,
+			title: "Auto CFR: Bookinger",
+			message: `Booket ${newlyBooked.length} ${trainingWord}:\n${newlyBooked.map(formatBookedDa).join("\n")}`,
 		});
 	}
 }
@@ -181,7 +186,7 @@ async function run(): Promise<void> {
 				await sendPushoverNotification({
 					token: PUSHOVER_TOKEN,
 					user: PUSHOVER_USER,
-					title: "CrossFit booking fejl",
+					title: "Auto CFR: Booking fejlede",
 					message: `Fejl: ${String(error)}`,
 				});
 			}

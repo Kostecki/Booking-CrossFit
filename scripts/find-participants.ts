@@ -4,7 +4,7 @@
 // Prints everyone signed up for the given class as "Name — participantId" so you can
 // copy the ids of the people you want to track into TRACKED_PEOPLE in .env.
 
-import { getClassDetail, login } from "../bookingApi.ts";
+import { getClassDetail, login } from "@booking/core/api";
 
 function requireEnv(name: string): string {
 	const value = process.env[name];
