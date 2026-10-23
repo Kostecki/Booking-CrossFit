@@ -14,6 +14,9 @@ COPY apps/web/package.json apps/web/
 RUN pnpm install --frozen-lockfile
 COPY packages/core packages/core
 COPY apps/web apps/web
+# The commit being built, shown in the app's settings
+ARG COMMIT_SHA=dev
+ENV COMMIT_SHA=$COMMIT_SHA
 RUN pnpm --filter @booking/web build \
 	&& CI=true pnpm install --frozen-lockfile --prod
 
