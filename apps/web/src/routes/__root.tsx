@@ -39,7 +39,9 @@ export const Route = createRootRoute({
 			{ charSet: "utf-8" },
 			{
 				name: "viewport",
-				content: "width=device-width, initial-scale=1, viewport-fit=cover",
+				// No zooming, like a native app (also stops iOS zooming into inputs on focus).
+				content:
+					"width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover",
 			},
 			{ title: "Auto CFR" },
 			{ name: "theme-color", content: INK },
@@ -98,8 +100,26 @@ function useServiceWorker() {
 	}, []);
 }
 
+// iOS ignores user-scalable=no; its proprietary gesture events are what pinch-zoom
+// runs on, so cancelling them stops pinching. touch-action on <body> stops
+// double-tap zoom.
+function useNoPinchZoom() {
+	useEffect(() => {
+		const prevent = (event: Event) => event.preventDefault();
+		for (const type of ["gesturestart", "gesturechange", "gestureend"]) {
+			document.addEventListener(type, prevent, { passive: false });
+		}
+		return () => {
+			for (const type of ["gesturestart", "gesturechange", "gestureend"]) {
+				document.removeEventListener(type, prevent);
+			}
+		};
+	}, []);
+}
+
 function RootDocument({ children }: { children: ReactNode }) {
 	useServiceWorker();
+	useNoPinchZoom();
 	return (
 		<html lang="da" {...mantineHtmlProps}>
 			<head>
@@ -107,7 +127,12 @@ function RootDocument({ children }: { children: ReactNode }) {
 				<HeadContent />
 			</head>
 			{/* Cards and the header stay white (Mantine's body colour); only the page behind them is tinted. */}
-			<body style={{ backgroundColor: PAGE_BACKGROUND }}>
+			<body
+				style={{
+					backgroundColor: PAGE_BACKGROUND,
+					touchAction: "manipulation",
+				}}
+			>
 				<MantineProvider theme={theme} forceColorScheme="light">
 					<Notifications position="top-center" />
 					{children}
