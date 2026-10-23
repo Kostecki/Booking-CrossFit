@@ -34,9 +34,8 @@ export const Route = createFileRoute("/_app")({
 	component: Layout,
 });
 
-// The tab bar's own height plus the iPhone home-indicator area, so the safe-area
-// padding doesn't squeeze the icons and labels.
-const TAB_BAR_HEIGHT = "calc(56px + env(safe-area-inset-bottom))";
+// Leave room for the floating dock and the iPhone home-indicator area.
+const TAB_BAR_HEIGHT = "calc(76px + env(safe-area-inset-bottom))";
 
 const tabs = [
 	{ to: "/", label: "Bookinger", icon: IconCalendarEvent },
@@ -109,9 +108,32 @@ function Layout() {
 				)}
 				<Outlet />
 			</AppShell.Main>
-			<AppShell.Footer style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
-				{/* Fixed-width tabs, centred, rather than stretched across the whole bar. */}
-				<Group justify="center" h={56} gap="xs" wrap="nowrap">
+			<AppShell.Footer
+				style={{
+					padding: "8px 12px calc(8px + env(safe-area-inset-bottom))",
+					background: "transparent",
+					border: 0,
+				}}
+			>
+				<Group
+					component="nav"
+					aria-label="Hovednavigation"
+					h={60}
+					p={5}
+					gap={4}
+					wrap="nowrap"
+					style={{
+						width: "100%",
+						maxWidth: 420,
+						marginInline: "auto",
+						borderRadius: 20,
+						border: "1px solid rgba(22, 28, 36, 0.08)",
+						backgroundColor: "rgba(255, 255, 255, 0.78)",
+						backdropFilter: "blur(20px) saturate(180%)",
+						WebkitBackdropFilter: "blur(20px) saturate(180%)",
+						boxShadow: "0 4px 20px rgba(22, 28, 36, 0.12)",
+					}}
+				>
 					{tabs.map(({ to, label, icon: Icon }) => (
 						<UnstyledButton
 							key={to}
@@ -119,10 +141,19 @@ function Layout() {
 							to={to}
 							activeOptions={{ exact: true }}
 							h="100%"
-							w={82}
-							style={{ color: "var(--mantine-color-dimmed)" }}
-							// A darker shade of the brand green: #61a928 is too faint for small text on white.
-							activeProps={{ style: { color: "var(--mantine-color-green-8)" } }}
+							style={{
+								flex: 1,
+								minWidth: 0,
+								borderRadius: 15,
+								color: "var(--mantine-color-ink-4)",
+								transition: "background-color 160ms ease, color 160ms ease",
+							}}
+							activeProps={{
+								style: {
+									color: "var(--mantine-color-green-9)",
+									backgroundColor: "rgba(97, 169, 40, 0.14)",
+								},
+							}}
 						>
 							<Stack gap={2} align="center" justify="center" h="100%">
 								<Icon size={22} stroke={1.75} />
