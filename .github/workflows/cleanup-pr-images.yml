@@ -1,0 +1,62 @@
+name: Clean up PR images
+
+# When a PR is closed (merged or not), delete the images built from its branch:
+# the branch tag and the sha-<short> tag of every commit in the PR. main's own
+# images (latest and its sha tags) are kept: merges create new commits on main,
+# and `latest` is excluded as a safeguard. The cleanup action also removes the
+# per-architecture images inside each deleted multi-arch manifest.
+on:
+  pull_request:
+    types: [closed]
+  # For PRs closed before this workflow existed, or leftovers from force-pushes.
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: PR number whose images to delete
+        required: true
+      extra-tags:
+        description: Extra comma-separated tags to delete (e.g. sha tags of force-pushed commits)
+        required: false
+      dry-run:
+        description: Only log what would be deleted
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  packages: write
+  pull-requests: read
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Collect the PR's image tags
+        id: tags
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number || inputs.pr }}
+          EXTRA: ${{ inputs.extra-tags }}
+        run: |
+          branch=$(gh api "repos/$REPO/pulls/$PR" -q .head.ref)
+          # docker/metadata-action turns anything outside [A-Za-z0-9._-] into "-".
+          branch_tag=$(echo "$branch" | sed 's/[^A-Za-z0-9._-]/-/g')
+          if [ "$branch_tag" = "main" ]; then
+            echo "Refusing to delete images for main" >&2
+            exit 1
+          fi
+          shas=$(gh api --paginate "repos/$REPO/pulls/$PR/commits" -q '.[].sha[0:7]' | sed 's/^/sha-/' | paste -sd, -)
+          tags="$branch_tag,$shas${EXTRA:+,$EXTRA}"
+          echo "PR #$PR ($branch): $tags"
+          echo "tags=$tags" >> "$GITHUB_OUTPUT"
+
+      - name: Delete them from GHCR
+        uses: dataaxiom/ghcr-cleanup-action@v1.2.2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          package: booking-crossfit
+          delete-tags: ${{ steps.tags.outputs.tags }}
+          exclude-tags: latest
+          dry-run: ${{ inputs.dry-run || false }}
