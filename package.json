@@ -4,6 +4,7 @@
 	"type": "module",
 	"scripts": {
 		"dev": "pnpm --filter @booking/web dev",
+		"dev:https": "pnpm --filter @booking/web dev:https",
 		"start": "node --env-file=.env script.ts",
 		"test": "pnpm --filter @booking/core test",
 		"lint": "biome check",

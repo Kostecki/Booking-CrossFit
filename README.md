@@ -44,10 +44,27 @@ pnpm install
 cp apps/web/.env.example apps/web/.env    # then fill in the values
 pnpm dev                                  # web (http://localhost:3000) + worker
 pnpm dev --host                           # same, reachable from your phone on the LAN
+pnpm dev:https                            # same over HTTPS, for testing the PWA on a phone
 pnpm test                                 # core unit tests
 ```
 
 `pnpm dev` runs the worker as a dry run, so a local dev setup never books for real next to the production worker. Use `DRY_RUN= pnpm dev` for real runs, or `pnpm --filter @booking/web worker` to run only the worker.
+
+### Testing the PWA on a phone
+
+Service workers, installing the app and push only work over HTTPS with a certificate
+the phone trusts. `pnpm dev:https` uses [mkcert](https://github.com/FiloSottile/mkcert)
+(`brew install mkcert`) to issue a certificate for `localhost`, the Mac's LAN IP and its
+Bonjour name (e.g. `JacobsMBP.local`), and prints the addresses to open as `Phone:`. Use the
+IP: some networks don't resolve `.local` names for the phone even when the Mac is reachable.
+The phone must be on the same network; a new IP just gets a new certificate on the next start.
+
+One-time setup on the iPhone:
+1. AirDrop `$(mkcert -CAROOT)/rootCA.pem` to the phone and install the profile
+   (Settings → General → VPN & Device Management).
+2. Turn on full trust for it: Settings → General → About → Certificate Trust Settings.
+
+Optionally run `mkcert -install` to trust the same certificate in the Mac's browsers.
 
 Worker flags for testing:
 - `DRY_RUN=1` logs without booking.

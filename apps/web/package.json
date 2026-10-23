@@ -7,6 +7,7 @@
 	},
 	"scripts": {
 		"dev": "concurrently -P -n web,worker -c blue,green \"pnpm dev:web {@}\" \"pnpm dev:worker\" --",
+		"dev:https": "HTTPS=1 pnpm dev --host",
 		"dev:web": "node --env-file-if-exists=.env node_modules/vite/bin/vite.js dev --port 3000",
 		"dev:worker": "DRY_RUN=${DRY_RUN-1} node --watch --env-file-if-exists=.env src/worker/index.ts",
 		"build": "vite build",

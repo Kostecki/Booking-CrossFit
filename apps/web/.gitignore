@@ -3,3 +3,4 @@
 .tanstack
 dist
 data/
+.cert/
