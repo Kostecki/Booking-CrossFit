@@ -59,6 +59,16 @@ export const Route = createRootRoute({
 				media: `(device-width: ${width}px) and (device-height: ${height}px) and (-webkit-device-pixel-ratio: ${scale}) and (orientation: portrait)`,
 			})),
 		],
+		// Analytics (only in production builds)
+		scripts: import.meta.env.PROD
+			? [
+					{
+						src: "https://umami.kostecki.dk/script.js",
+						defer: true,
+						"data-website-id": "349754e4-5462-4651-8a22-eda7ef603860",
+					},
+				]
+			: [],
 	}),
 	shellComponent: RootDocument,
 });
