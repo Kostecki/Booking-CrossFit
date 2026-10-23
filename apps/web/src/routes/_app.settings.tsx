@@ -1,9 +1,11 @@
-import { Button, Card, Stack, Text, Title } from "@mantine/core";
+import { Button, Group, Modal, Stack, Text } from "@mantine/core";
+import { useDisclosure } from "@mantine/hooks";
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
+import { useState } from "react";
 
-import { ConfirmButton } from "#/components/ConfirmButton.tsx";
-import { NotificationsCard } from "#/components/NotificationsCard.tsx";
+import { NotificationsGroup } from "#/components/NotificationsGroup.tsx";
+import { SettingsGroup, SettingsRow } from "#/components/Settings.tsx";
 import { deleteAccount, logout } from "#/server/auth.functions.ts";
 import { getPushConfig } from "#/server/push.functions.ts";
 
@@ -13,57 +15,65 @@ export const Route = createFileRoute("/_app/settings")({
 });
 
 function Settings() {
-	const { user } = Route.useRouteContext();
 	const router = useRouter();
 	const doLogout = useServerFn(logout);
 	const doDelete = useServerFn(deleteAccount);
 	const { publicKey } = Route.useLoaderData();
+	const [confirmOpened, confirm] = useDisclosure(false);
+	const [deleting, setDeleting] = useState(false);
 
 	return (
-		<Stack>
-			<NotificationsCard publicKey={publicKey} />
+		<Stack gap="lg">
+			<NotificationsGroup publicKey={publicKey} />
 
-			<Card withBorder>
-				<Stack gap="xs">
-					<Title order={5}>Konto</Title>
-					<Text size="sm">{user.fullName}</Text>
-					<Text size="sm" c="dimmed">
-						{user.email}
-					</Text>
-					<Button
-						variant="default"
-						onClick={async () => {
-							await doLogout();
-							await router.invalidate();
-						}}
-					>
-						Log ud
+			<SettingsGroup
+				label="Konto"
+				footer="Sletter du kontoen, slettes dit skema, din historik og din gemte adgangskode. Dine eksisterende bookinger i BookingBoard bliver ikke rørt."
+			>
+				<SettingsRow
+					label="Log ud"
+					onClick={async () => {
+						await doLogout();
+						await router.invalidate();
+					}}
+				/>
+				<SettingsRow
+					label="Slet konto"
+					tint="destructive"
+					onClick={confirm.open}
+				/>
+			</SettingsGroup>
+
+			<Modal
+				opened={confirmOpened}
+				onClose={confirm.close}
+				title="Slet konto"
+				centered
+			>
+				<Text size="sm">
+					Er du sikker? Der bookes ikke længere automatisk for dig.
+				</Text>
+				<Group justify="flex-end" mt="lg">
+					<Button variant="default" onClick={confirm.close}>
+						Annuller
 					</Button>
-				</Stack>
-			</Card>
-
-			<Card withBorder>
-				<Stack gap="xs">
-					<Title order={5}>Slet konto</Title>
-					<Text size="sm" c="dimmed">
-						Sletter dit skema, din historik og din gemte adgangskode. Dine
-						eksisterende bookinger i BookingBoard bliver ikke rørt.
-					</Text>
-					<ConfirmButton
+					<Button
 						color="red"
-						variant="light"
-						title="Slet konto"
-						message="Er du sikker? Der bookes ikke længere automatisk for dig."
-						confirmLabel="Slet"
-						onConfirm={async () => {
-							await doDelete();
-							await router.invalidate();
+						loading={deleting}
+						onClick={async () => {
+							setDeleting(true);
+							try {
+								await doDelete();
+								await router.invalidate();
+							} finally {
+								setDeleting(false);
+							}
 						}}
 					>
-						Slet konto
-					</ConfirmButton>
-				</Stack>
-			</Card>
+						Slet
+					</Button>
+				</Group>
+			</Modal>
 		</Stack>
 	);
 }

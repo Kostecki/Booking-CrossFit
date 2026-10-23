@@ -1,0 +1,18 @@
+.row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--mantine-spacing-sm);
+	width: 100%;
+	min-height: 48px;
+	padding: 10px var(--mantine-spacing-md);
+	text-align: left;
+}
+
+.row[data-clickable]:hover {
+	background-color: var(--mantine-color-gray-0);
+}
+
+.row[data-clickable]:active {
+	background-color: var(--mantine-color-gray-1);
+}
