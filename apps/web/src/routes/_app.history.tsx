@@ -22,15 +22,18 @@ const STATUS_BADGE: Record<
 	error: { label: "Fejl", color: "red" },
 };
 
-const formatTime = (iso: string) =>
-	new Date(iso).toLocaleString("da-DK", {
+// "Fredag 23. okt., 19.03": Danish writes weekdays in lowercase, but it starts the line.
+const formatTime = (iso: string) => {
+	const text = new Date(iso).toLocaleString("da-DK", {
 		timeZone: "Europe/Copenhagen",
-		weekday: "short",
+		weekday: "long",
 		day: "numeric",
 		month: "short",
 		hour: "2-digit",
 		minute: "2-digit",
 	});
+	return text.charAt(0).toUpperCase() + text.slice(1);
+};
 
 function Activity() {
 	const runs = Route.useLoaderData();
