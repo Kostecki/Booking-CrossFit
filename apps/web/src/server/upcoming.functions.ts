@@ -5,6 +5,7 @@ import {
 	isCancelled,
 	isKnownStatus,
 	matchingSlot,
+	occupancy,
 } from "@booking/core/automation";
 import { createServerFn } from "@tanstack/react-start";
 import { and, eq, lt } from "drizzle-orm";
@@ -16,6 +17,7 @@ import {
 	forgetBookings,
 	loadBookings,
 	loadTimetable,
+	loadWaitingListPosition,
 	TIME_ZONE,
 	withBookingToken,
 } from "./bookingboard.ts";
@@ -33,7 +35,8 @@ export type UpcomingClass = {
 	state: "booked" | "waitlist" | "planned" | "cancelled";
 	skipped: boolean;
 	rebookPending: boolean;
-	occupancy?: string; // "12/16"
+	occupancy?: string; // "12/16": seats taken (excluding the waiting list) / total
+	waitlistPosition?: number; // 1-based, when on the waiting list
 };
 
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -114,11 +117,7 @@ export const getUpcoming = createServerFn({ method: "GET" })
 					state,
 					skipped: skipped.has(classId),
 					rebookPending: rebooks.has(classId),
-					occupancy:
-						cls?.numberOfParticipants !== undefined &&
-						cls.maximumNumberOfParticipants !== undefined
-							? `${cls.numberOfParticipants}/${cls.maximumNumberOfParticipants}`
-							: undefined,
+					occupancy: cls ? occupancy(cls) : undefined,
 				};
 			};
 
@@ -158,6 +157,22 @@ export const getUpcoming = createServerFn({ method: "GET" })
 					rows.set(cls.id, row(cls.id, cls.title, cls.begins, "planned"));
 				}
 			}
+
+			// Waiting-list positions: one (cached) participant-list lookup per waitlisted class.
+			await Promise.all(
+				bookings.map(async (b) => {
+					const row = rows.get(b.classId);
+					if (row?.state !== "waitlist" || b.status !== "OnWaitingList") return;
+					row.waitlistPosition = await loadWaitingListPosition(
+						user,
+						b.classId,
+						b.id,
+						{
+							fresh,
+						},
+					).catch(() => undefined); // best-effort: the pill just omits the number
+				}),
+			);
 
 			return {
 				classes: [...rows.values()].sort(

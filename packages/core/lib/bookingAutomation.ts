@@ -6,18 +6,18 @@ import {
 	reactivateBooking,
 	toApiDateTime,
 } from "../bookingApi.ts";
-import type { ClassRegistration, ClazzMobile } from "../types.ts";
+import type { ClassRegistration, ClazzMobile, Participant } from "../types.ts";
 
 // Statuses that mean the booking no longer counts (cancelled / opted out).
 const CANCELLED_STATUSES = new Set(["OptedOut", "OptedOutTooLate"]);
 
 export const isCancelled = (status: string) => CANCELLED_STATUSES.has(status);
 
-// Statuses seen with real data. Anything else is most likely the waiting list's
-// status, whose exact name hasn't been observed yet; it's logged with this prefix
-// so the app can record it (see apps/web waitlistDebug.ts). Remove once known.
+// Statuses seen with real data. Anything else is logged with this prefix so the app
+// can record it (see apps/web waitlistDebug.ts).
 const KNOWN_STATUSES = new Set([
 	"SignedUp",
+	"OnWaitingList",
 	"OptedOut",
 	"OptedOutTooLate",
 	"OnTime",
@@ -38,11 +38,8 @@ export type BookingAutomationConfig = {
 	token: string;
 	accountId: number;
 	centerTimeZone: string;
-	// participantId (as string) -> display name, for "also attending"
-	people?: Record<string, string>;
 	slots: ClassSlot[];
-	// Omit for no weekly limit (book the next matching classes up to maxTotalSessions).
-	maxSessionsPerWeek?: number;
+	// Books the next matching classes until this many are held.
 	maxTotalSessions: number;
 	dryRun: boolean;
 	pendingRebookClassIds: number[];
@@ -61,7 +58,6 @@ export type BookedClass = {
 	// e.g. " (12/16)", empty when unknown
 	occupancy: string;
 	waitingList: boolean;
-	alsoAttending: string[];
 	rebooked: boolean;
 };
 
@@ -98,20 +94,6 @@ export function weekdayForDate(
 	day: number,
 ): number {
 	return new Date(year, month - 1, day).getDay();
-}
-
-function getISOWeekNumber(year: number, month: number, day: number): number {
-	const date = new Date(year, month - 1, day);
-	date.setHours(0, 0, 0, 0);
-	date.setDate(date.getDate() + 4 - (date.getDay() || 7));
-	const yearStart = new Date(date.getFullYear(), 0, 1);
-	return Math.ceil(((date.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
-}
-
-function getWeekKey(timestampMs: number, timeZone: string): string {
-	const { year, month, day } = getTimePartsInZone(timestampMs, timeZone);
-	const week = getISOWeekNumber(year, month, day);
-	return `${year}-W${String(week).padStart(2, "0")}`;
 }
 
 function isTargetClass(cls: ClazzMobile, targetTitle: string): boolean {
@@ -194,21 +176,53 @@ function dateLabel(
 	});
 }
 
-function occupancyLabel(
-	count: number | undefined,
-	max: number | undefined,
-): string {
-	return count !== undefined && max !== undefined ? ` (${count}/${max})` : "";
+type Capacity = Pick<
+	ClazzMobile,
+	| "numberOfParticipants"
+	| "numberOfParticipantsOnWaitingList"
+	| "maximumNumberOfParticipants"
+>;
+
+/**
+ * Seats taken out of the total, e.g. "16/16". BookingBoard's numberOfParticipants
+ * includes the waiting list, so it's subtracted (a full class would read "17/16").
+ */
+export function occupancy(cls: Capacity): string | undefined {
+	const { numberOfParticipants: count, maximumNumberOfParticipants: max } = cls;
+	if (count === undefined || max === undefined) return undefined;
+	const taken = Math.max(
+		0,
+		count - (cls.numberOfParticipantsOnWaitingList ?? 0),
+	);
+	return `${taken}/${max}`;
+}
+
+function occupancyLabel(cls: Capacity): string {
+	const value = occupancy(cls);
+	return value ? ` (${value})` : "";
+}
+
+/**
+ * 1-based position of a participation on the class's waiting list, ordered by sign-up
+ * time (assumed first come, first served), or undefined if it isn't waiting.
+ */
+export function waitingListPosition(
+	participants: Participant[],
+	participationId: number,
+): number | undefined {
+	const waiting = participants
+		.filter((p) => p.status === "OnWaitingList")
+		.sort(
+			(a, b) => Date.parse(a.signedUpAt ?? "") - Date.parse(b.signedUpAt ?? ""),
+		);
+	const index = waiting.findIndex((p) => p.id === participationId);
+	return index === -1 ? undefined : index + 1;
 }
 
 /** Danish one-line summary of a booking, as used in notifications. */
 export function formatBookedDa(booked: BookedClass): string {
 	const waiting = booked.waitingList ? " (VENTELISTE)" : "";
-	const tracked =
-		booked.alsoAttending.length > 0
-			? `\nDeltager også: ${booked.alsoAttending.join(", ")}`
-			: "";
-	return `${booked.timeLabel} - ${booked.labelDa}${booked.occupancy}${waiting}${tracked}`;
+	return `${booked.timeLabel} - ${booked.labelDa}${booked.occupancy}${waiting}`;
 }
 
 /** The pending rebook requests that are now held (not cancelled) on the account. */
@@ -231,9 +245,7 @@ export async function runBookingAutomation({
 	token,
 	accountId,
 	centerTimeZone,
-	people = {},
 	slots,
-	maxSessionsPerWeek = Number.POSITIVE_INFINITY,
 	maxTotalSessions,
 	dryRun,
 	pendingRebookClassIds,
@@ -264,13 +276,6 @@ export async function runBookingAutomation({
 	const heldClassIds = new Set(held.map((b) => b.classId));
 	const pendingRebooks = new Set(pendingRebookClassIds);
 	const skipped = new Set(skipClassIds);
-
-	// Weekly counts use all held bookings (so earlier-this-week sessions still count).
-	const bookingsByWeek = new Map<string, number>();
-	for (const b of held) {
-		const key = getWeekKey(b.ms, centerTimeZone);
-		bookingsByWeek.set(key, (bookingsByWeek.get(key) ?? 0) + 1);
-	}
 
 	const bookedLabels = upcoming.map((b) =>
 		dateLabel(b.ms, centerTimeZone, "en-GB"),
@@ -322,18 +327,12 @@ export async function runBookingAutomation({
 		const rebookRequested = pendingRebooks.has(cls.id);
 		if (registeredClassIds.has(cls.id) && !rebookRequested) continue;
 
-		const weekKey = getWeekKey(ms, centerTimeZone);
-		if ((bookingsByWeek.get(weekKey) ?? 0) >= maxSessionsPerWeek) continue;
-
 		const timeLabel = `${slot.classTitle} ${String(slot.hour).padStart(2, "0")}:${String(slot.minute).padStart(2, "0")}`;
 		const labelEn = dateLabel(ms, centerTimeZone, "en-GB");
 		const labelDa = dateLabel(ms, centerTimeZone, "da-DK");
 
 		if (dryRun) {
-			const occ = occupancyLabel(
-				cls.numberOfParticipants,
-				cls.maximumNumberOfParticipants,
-			);
+			const occ = occupancyLabel(cls);
 			const full = cls.hasSeatsLeft === false;
 			log(
 				`[dry-run] Would ${rebookRequested ? "rebook" : "book"}: ${timeLabel} on ${labelEn}${occ}${full ? " (WAITING LIST)" : ""}`,
@@ -346,13 +345,11 @@ export async function runBookingAutomation({
 				labelDa,
 				occupancy: occ,
 				waitingList: full,
-				alsoAttending: [],
 				rebooked: rebookRequested,
 			});
 			upcomingCount++;
 			registeredClassIds.add(cls.id);
 			heldClassIds.add(cls.id);
-			bookingsByWeek.set(weekKey, (bookingsByWeek.get(weekKey) ?? 0) + 1);
 			continue;
 		}
 
@@ -409,30 +406,16 @@ export async function runBookingAutomation({
 			);
 		}
 
-		// Occupancy + "also attending" from the class detail (post-booking).
-		let trackedHere: string[] = [];
+		// Occupancy from the class detail (post-booking), for the notification.
 		let occ = "";
 		try {
-			const detail = await getClassDetail(token, cls.id);
-			occ = occupancyLabel(
-				detail.numberOfParticipants,
-				detail.maximumNumberOfParticipants,
-			);
-			trackedHere = (detail.participants ?? [])
-				.filter((p) => people[String(p.participantId)])
-				.map((p) => people[String(p.participantId)] as string)
-				.sort();
+			occ = occupancyLabel(await getClassDetail(token, cls.id));
 		} catch {
 			// Detail is best-effort; booking already succeeded and verified.
 		}
 
-		const consoleTracked =
-			trackedHere.length > 0
-				? ` - also attending: ${trackedHere.join(", ")}`
-				: "";
-
 		log(
-			`Booked and verified: ${timeLabel} on ${labelEn}${occ}${onWaitingList ? " (WAITING LIST)" : ""}${consoleTracked}`,
+			`Booked and verified: ${timeLabel} on ${labelEn}${occ}${onWaitingList ? " (WAITING LIST)" : ""}`,
 		);
 		newlyBooked.push({
 			classId: cls.id,
@@ -442,14 +425,12 @@ export async function runBookingAutomation({
 			labelDa,
 			occupancy: occ,
 			waitingList: onWaitingList,
-			alsoAttending: trackedHere,
 			rebooked: rebookRequested,
 		});
 
 		upcomingCount++;
 		registeredClassIds.add(cls.id);
 		heldClassIds.add(cls.id);
-		bookingsByWeek.set(weekKey, (bookingsByWeek.get(weekKey) ?? 0) + 1);
 	}
 
 	if (newlyBooked.length === 0) {

@@ -30,7 +30,6 @@ Passwords and tokens are stored encrypted (AES-256-GCM) so the worker can log in
 |---|---|
 | `packages/core` | BookingBoard API client and booking logic (`@booking/core`), with unit tests |
 | `apps/web` | TanStack Start + Mantine app, SQLite (Drizzle), and the worker (`src/worker`) |
-| `script.ts` | The original single-user CLI, kept until the app takes over |
 
 ## Requirements
 
@@ -43,10 +42,28 @@ Passwords and tokens are stored encrypted (AES-256-GCM) so the worker can log in
 pnpm install
 cp apps/web/.env.example apps/web/.env    # then fill in the values
 pnpm dev                                  # web (http://localhost:3000) + worker
+pnpm dev --host                           # same, reachable from your phone on the LAN
+pnpm dev:https                            # same over HTTPS, for testing the PWA on a phone
 pnpm test                                 # core unit tests
 ```
 
 `pnpm dev` runs the worker as a dry run, so a local dev setup never books for real next to the production worker. Use `DRY_RUN= pnpm dev` for real runs, or `pnpm --filter @booking/web worker` to run only the worker.
+
+### Testing the PWA on a phone
+
+Service workers, installing the app and push only work over HTTPS with a certificate
+the phone trusts. `pnpm dev:https` uses [mkcert](https://github.com/FiloSottile/mkcert)
+(`brew install mkcert`) to issue a certificate for `localhost`, the Mac's LAN IP and its
+Bonjour name (e.g. `JacobsMBP.local`), and prints the addresses to open as `Phone:`. Use the
+IP: some networks don't resolve `.local` names for the phone even when the Mac is reachable.
+The phone must be on the same network; a new IP just gets a new certificate on the next start.
+
+One-time setup on the iPhone:
+1. AirDrop `$(mkcert -CAROOT)/rootCA.pem` to the phone and install the profile
+   (Settings → General → VPN & Device Management).
+2. Turn on full trust for it: Settings → General → About → Certificate Trust Settings.
+
+Optionally run `mkcert -install` to trust the same certificate in the Mac's browsers.
 
 Worker flags for testing:
 - `DRY_RUN=1` logs without booking.
@@ -83,23 +100,13 @@ Setup:
    - `DATA_DIR`
    - `APP_ENCRYPTION_KEY`
    - `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`
-   - optionally `IMAGE_TAG` (e.g. `multi-user-pwa` to try a branch), `APP_PORT`, `DRY_RUN=1`
+   - optionally `APP_PORT`, `DRY_RUN=1`
 3. Set the repo variables `TS_OAUTH_CLIENT_ID`, `TS_HOST`, `KOMODO_PORT`, `KOMODO_STACK_ID` and the secrets `KOMODO_API_KEY`, `KOMODO_API_SECRET`.
 4. In Pangolin, add a resource for the web service. It must be HTTPS: service workers, Web Push and the `Secure` session cookie all need it. The app has its own login, so Pangolin auth isn't needed in front of it.
 
 `nautical-backup` picks up both containers (group `booking-crossfit`). Keep `APP_ENCRYPTION_KEY` outside the backups.
 
 Locally, `docker compose up --build` builds the image through `compose.override.yaml`. It reads variables from the root `.env`.
-
-## Legacy CLI
-
-Until the cutover, `script.ts` still books for one account from the root `.env`:
-- `pnpm start` books.
-- `DRY_RUN=1 pnpm start` only logs.
-
-It reads the old env vars: `API_EMAIL`, `API_PASSWORD`, `CLASS_TITLE`, `TARGET_WEEKDAYS`, `TARGET_TIME`, `MAX_SESSIONS_PER_WEEK`, `MAX_TOTAL_SESSIONS`, `TRACKED_PEOPLE`, and Pushover.
-
-Its one-time rebookings live in `booking-requests.json`, with state in `rebook-state.json`. To find participant ids for `TRACKED_PEOPLE`, run `node --env-file=.env scripts/find-participants.ts <classId>`.
 
 ## Notes
 

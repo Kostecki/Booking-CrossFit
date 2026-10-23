@@ -1,13 +1,4 @@
-import {
-	Alert,
-	Button,
-	Card,
-	Group,
-	List,
-	Stack,
-	Text,
-	Title,
-} from "@mantine/core";
+import { Alert, List, Loader, Stack, Switch } from "@mantine/core";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
 
@@ -18,6 +9,7 @@ import {
 } from "#/server/push.functions.ts";
 
 import { notifyError, notifyInfo } from "./notify.ts";
+import { SettingsGroup, SettingsRow } from "./Settings.tsx";
 
 type State =
 	| "loading"
@@ -48,7 +40,11 @@ async function currentSubscription() {
 	return registration.pushManager.getSubscription();
 }
 
-export function NotificationsCard({ publicKey }: { publicKey: string | null }) {
+export function NotificationsGroup({
+	publicKey,
+}: {
+	publicKey: string | null;
+}) {
 	const save = useServerFn(savePushSubscription);
 	const remove = useServerFn(deletePushSubscription);
 	const sendTest = useServerFn(sendTestNotification);
@@ -129,63 +125,61 @@ export function NotificationsCard({ publicKey }: { publicKey: string | null }) {
 			);
 		});
 
+	// Why the switch can't be used, if it can't.
+	const unavailable = {
+		"ios-install": "Kræver at appen er føjet til hjemmeskærmen.",
+		unsupported: "Din browser understøtter ikke notifikationer.",
+		"not-configured": "Notifikationer er ikke sat op på serveren endnu.",
+		denied:
+			"Notifikationer er blokeret. Tillad dem for denne side i browserens eller telefonens indstillinger.",
+		loading: undefined,
+		off: undefined,
+		on: undefined,
+	}[state];
+
 	return (
-		<Card withBorder>
-			<Stack gap="xs">
-				<Title order={5}>Notifikationer</Title>
-				<Text size="sm" c="dimmed">
-					Få besked, når der er booket hold til dig, eller hvis dit login holder
-					op med at virke.
-				</Text>
-				{state === "ios-install" && (
-					<Alert color="blue" title="Føj appen til hjemmeskærmen">
-						<List size="sm" type="ordered">
-							<List.Item>Tryk på Del-knappen i Safari</List.Item>
-							<List.Item>Vælg "Føj til hjemmeskærm"</List.Item>
-							<List.Item>
-								Åbn appen fra hjemmeskærmen og slå notifikationer til her
-							</List.Item>
-						</List>
-					</Alert>
-				)}
-				{state === "unsupported" && (
-					<Text size="sm">Din browser understøtter ikke notifikationer.</Text>
-				)}
-				{state === "not-configured" && (
-					<Text size="sm">
-						Notifikationer er ikke sat op på serveren endnu.
-					</Text>
-				)}
-				{state === "denied" && (
-					<Text size="sm">
-						Notifikationer er blokeret. Tillad dem for denne side i browserens
-						eller telefonens indstillinger.
-					</Text>
-				)}
-				{state === "off" && (
-					<Button onClick={enable} loading={busy}>
-						Slå notifikationer til
-					</Button>
-				)}
+		<Stack gap="xs">
+			<SettingsGroup
+				label="Notifikationer"
+				footer={
+					unavailable ??
+					"Få besked, når der er booket hold til dig, eller hvis dit login holder op med at virke."
+				}
+			>
+				<SettingsRow
+					label="Tillad notifikationer"
+					right={
+						// Flipping it is a tap, which iOS requires for the permission prompt.
+						<Switch
+							aria-label="Tillad notifikationer"
+							checked={state === "on"}
+							disabled={busy || (state !== "on" && state !== "off")}
+							onChange={(event) =>
+								event.currentTarget.checked ? enable() : disable()
+							}
+						/>
+					}
+				/>
 				{state === "on" && (
-					<>
-						<Text size="sm">Slået til på denne enhed.</Text>
-						<Group>
-							<Button variant="outline" onClick={test} loading={busy}>
-								Send testnotifikation
-							</Button>
-							<Button
-								variant="subtle"
-								color="gray"
-								onClick={disable}
-								disabled={busy}
-							>
-								Slå fra
-							</Button>
-						</Group>
-					</>
+					<SettingsRow
+						label="Send testnotifikation"
+						onClick={test}
+						disabled={busy}
+						right={busy ? <Loader size={16} /> : undefined}
+					/>
 				)}
-			</Stack>
-		</Card>
+			</SettingsGroup>
+			{state === "ios-install" && (
+				<Alert color="blue" title="Føj appen til hjemmeskærmen">
+					<List size="sm" type="ordered">
+						<List.Item>Tryk på Del-knappen i Safari</List.Item>
+						<List.Item>Vælg "Føj til hjemmeskærm"</List.Item>
+						<List.Item>
+							Åbn appen fra hjemmeskærmen og slå notifikationer til her
+						</List.Item>
+					</List>
+				</Alert>
+			)}
+		</Stack>
 	);
 }

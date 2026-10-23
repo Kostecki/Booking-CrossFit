@@ -3,7 +3,9 @@ import { test } from "node:test";
 
 import {
 	type BookingAutomationConfig,
+	occupancy,
 	runBookingAutomation,
+	waitingListPosition,
 } from "../lib/bookingAutomation.ts";
 import type { ClassRegistration, ClazzMobile } from "../types.ts";
 
@@ -121,18 +123,6 @@ test("books the next classes matching any slot until the total cap", async () =>
 	});
 });
 
-test("an optional weekly cap leaves the remaining slots of a week unbooked", async () => {
-	await withFakeApi([], schedule, async () => {
-		const booked = await runBookingAutomation(
-			config({ slots, maxSessionsPerWeek: 2 }),
-		);
-		assert.deepEqual(
-			booked.map((b) => b.classId),
-			[1, 2, 4, 5, 7],
-		);
-	});
-});
-
 test("a skipped class is never booked and the next matching class takes its spot", async () => {
 	await withFakeApi([], schedule, async (requests) => {
 		const booked = await runBookingAutomation(
@@ -179,7 +169,6 @@ test("a one-time request rebooks a cancelled class before later classes", async 
 			const booked = await runBookingAutomation(
 				config({
 					slots: slots.slice(0, 2),
-					maxSessionsPerWeek: 2,
 					pendingRebookClassIds: [1458123],
 				}),
 			);
@@ -200,7 +189,7 @@ test("unknown statuses and waiting-list bookings are logged for debugging", asyn
 			classId: 1,
 			className: "WOD",
 			begins: "2026-10-20T17:30:00+02:00",
-			status: "OnWaitingList",
+			status: "SomethingNew",
 		},
 	];
 	// A full class: the POST comes back as something other than SignedUp.
@@ -233,7 +222,7 @@ test("unknown statuses and waiting-list bookings are logged for debugging", asyn
 				lines.some(
 					(l) =>
 						l.startsWith("[waitlist-debug] unknown-status ") &&
-						l.includes('"OnWaitingList"'),
+						l.includes('"SomethingNew"'),
 				),
 			);
 			const bookedLine = lines.find((l) =>
@@ -249,4 +238,42 @@ test("unknown statuses and waiting-list bookings are logged for debugging", asyn
 		},
 		joinWaitingList,
 	);
+});
+
+test("occupancy counts seats taken, not the waiting list", () => {
+	// BookingBoard reports 17 participants for a full 16-seat class with 1 waiting.
+	assert.equal(
+		occupancy({
+			numberOfParticipants: 17,
+			numberOfParticipantsOnWaitingList: 1,
+			maximumNumberOfParticipants: 16,
+		}),
+		"16/16",
+	);
+	assert.equal(
+		occupancy({ numberOfParticipants: 12, maximumNumberOfParticipants: 16 }),
+		"12/16",
+	);
+	assert.equal(occupancy({ numberOfParticipants: 12 }), undefined);
+});
+
+test("waiting-list position follows sign-up time, ignoring other statuses", () => {
+	const p = (id: number, status: string, signedUpAt: string) => ({
+		id,
+		participantId: id,
+		participantName: "",
+		status,
+		signedUpAt,
+	});
+	const participants = [
+		p(1, "SignedUp", "2026-10-01T10:00:00Z"),
+		p(2, "OnWaitingList", "2026-10-21T09:00:00Z"),
+		p(3, "OptedOut", "2026-10-02T10:00:00Z"),
+		p(4, "OnWaitingList", "2026-10-20T08:00:00Z"),
+		p(5, "OnWaitingList", "2026-10-22T07:00:00Z"),
+	];
+	assert.equal(waitingListPosition(participants, 4), 1);
+	assert.equal(waitingListPosition(participants, 2), 2);
+	assert.equal(waitingListPosition(participants, 5), 3);
+	assert.equal(waitingListPosition(participants, 1), undefined);
 });
