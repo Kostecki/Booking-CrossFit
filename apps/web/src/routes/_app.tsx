@@ -34,13 +34,12 @@ export const Route = createFileRoute("/_app")({
 	component: Layout,
 });
 
-// Leave room for the floating dock and the iPhone home-indicator area.
-// Gap below the floating dock: 8px where there's no inset. On Face ID iPhones it
-// comes out at -8px, deliberately: padding clamps it to 0, while the bar height
-// (below) shrinks by 8px, so the dock sits 8px lower, down over the home-indicator
-// area. Tuned by eye on a real iPhone, where this matched native floating tab bars.
-const DOCK_BOTTOM_GAP = "calc(8px - min(16px, env(safe-area-inset-bottom)))";
-// Dock (60px) + top padding (8px) + bottom gap.
+// Gap between the floating dock and the screen's bottom edge. On Face ID iPhones
+// (inset ~34px) it's 21px, matching native floating tab bars (measured: 21pt from the
+// bottom, 8pt above the home indicator); without an inset it's 8px.
+const DOCK_BOTTOM_GAP = "max(8px, calc(env(safe-area-inset-bottom) - 13px))";
+// Dock (60px) + top padding (8px) + bottom gap. Used both as the footer's height
+// and, through AppShell, as the content's bottom offset, so the list clears the dock.
 const TAB_BAR_HEIGHT = `calc(68px + ${DOCK_BOTTOM_GAP})`;
 
 const tabs = [
@@ -116,6 +115,9 @@ function Layout() {
 			</AppShell.Main>
 			<AppShell.Footer
 				style={{
+					// Mantine adds env(safe-area-inset-bottom) to the footer's height and padding
+					// (but not to the content's offset); DOCK_BOTTOM_GAP already accounts for it.
+					height: TAB_BAR_HEIGHT,
 					padding: `8px 12px ${DOCK_BOTTOM_GAP}`,
 					background: "transparent",
 					border: 0,
