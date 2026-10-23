@@ -28,7 +28,7 @@ function Settings() {
 
 			<SettingsGroup
 				label="Konto"
-				footer="Sletter du kontoen, slettes dit skema, din historik og din gemte adgangskode. Dine eksisterende bookinger i BookingBoard bliver ikke rørt."
+				footer="Sletter du kontoen, stopper auto-booking, og dine faste hold, din historik og dit gemte login slettes. Intet ændres i BookingBoard – heller ikke dine bookinger."
 			>
 				<SettingsRow
 					label="Log ud"

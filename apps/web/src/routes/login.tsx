@@ -57,10 +57,15 @@ function Login() {
 		<Container size={420} py="xl">
 			<form onSubmit={onSubmit}>
 				<Stack>
-					<Title order={2}>Auto CFR</Title>
+					<Stack gap={2}>
+						<Title order={2}>Auto CFR</Title>
+						<Text>
+							Booker automatisk dine faste hold hos CrossFit Roskilde.
+						</Text>
+					</Stack>
 					<Text c="dimmed" size="sm">
-						Log ind med dit BookingBoard-login fra CrossFit Roskilde. Din
-						adgangskode gemmes krypteret, så dine hold kan bookes automatisk.
+						Log ind med samme email og adgangskode som i CrossFit
+						Roskilde-appen.
 					</Text>
 					{error && <Alert color="red">{error}</Alert>}
 					<TextInput
