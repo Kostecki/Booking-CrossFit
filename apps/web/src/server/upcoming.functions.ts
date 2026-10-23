@@ -171,6 +171,33 @@ export const getUpcoming = createServerFn({ method: "GET" })
 							fresh,
 						},
 					).catch(() => undefined); // best-effort: the pill just omits the number
+					// Real waiting-list data, to check the order and promotion against later.
+					const cls = classesById.get(b.classId);
+					recordWaitlistDebug(
+						"waitlist-seen",
+						user.id,
+						{
+							registration: {
+								id: b.id,
+								classId: b.classId,
+								className: b.className,
+								begins: b.begins,
+								status: b.status,
+								signedUpAt: b.signedUpAt,
+							},
+							position: row.waitlistPosition ?? null,
+							class: cls
+								? {
+										numberOfParticipants: cls.numberOfParticipants,
+										numberOfParticipantsOnWaitingList:
+											cls.numberOfParticipantsOnWaitingList,
+										maximumNumberOfParticipants:
+											cls.maximumNumberOfParticipants,
+									}
+								: null,
+						},
+						`waitlist-seen:${b.id}:${row.waitlistPosition}`,
+					);
 				}),
 			);
 
