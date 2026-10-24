@@ -26,10 +26,10 @@ Passwords and tokens are stored encrypted (AES-256-GCM) so the worker can log in
 
 ## Layout
 
-| Path | What |
-|---|---|
-| `packages/core` | BookingBoard API client and booking logic (`@booking/core`), with unit tests |
-| `apps/web` | TanStack Start + Mantine app, SQLite (Drizzle), and the worker (`src/worker`) |
+| Path            | What                                                                          |
+| --------------- | ----------------------------------------------------------------------------- |
+| `packages/core` | BookingBoard API client and booking logic (`@booking/core`), with unit tests  |
+| `apps/web`      | TanStack Start + Mantine app, SQLite (Drizzle), and the worker (`src/worker`) |
 
 ## Requirements
 
@@ -76,13 +76,13 @@ Migrations are applied when the server or the worker starts. A dev server that w
 
 ## Configuration (`apps/web/.env`)
 
-| Var | Purpose |
-|---|---|
-| `APP_ENCRYPTION_KEY` | 32 bytes, base64 (`openssl rand -base64 32`). Encrypts stored logins. Changing it means everyone logs in again. |
-| `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` | Web Push keys (`node -e "console.log(require('web-push').generateVAPIDKeys())"`) and a `mailto:` contact |
-| `DATA_DIR` | Where `app.db` lives. Forced to `/data` in Docker. |
-| `API_BASE_URL` / `CHAIN_ID` | BookingBoard host and chain (default: CrossFit Roskilde, 291) |
-| `DRY_RUN` | `1` makes the worker compute and log without booking |
+| Var                                                        | Purpose                                                                                                         |
+| ---------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `APP_ENCRYPTION_KEY`                                       | 32 bytes, base64 (`openssl rand -base64 32`). Encrypts stored logins. Changing it means everyone logs in again. |
+| `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` | Web Push keys (`node -e "console.log(require('web-push').generateVAPIDKeys())"`) and a `mailto:` contact        |
+| `DATA_DIR`                                                 | Where `app.db` lives. Forced to `/data` in Docker.                                                              |
+| `API_BASE_URL` / `CHAIN_ID`                                | BookingBoard host and chain (default: CrossFit Roskilde, 291)                                                   |
+| `DRY_RUN`                                                  | `1` makes the worker compute and log without booking                                                            |
 
 ## Deploy
 
@@ -94,7 +94,6 @@ This is set up like the other homelab projects:
 The Komodo stack deploys `docker-compose.yml`. It runs `web` (port `${APP_PORT:-3000}`) and `worker` from the same image, sharing the SQLite database in `${DATA_DIR}/data`.
 
 Setup:
-
 1. Create the data folder on the server and give it to the image's `node` user: `sudo chown -R 1000:1000 <docker root>/projects/booking-crossfit/data`.
 2. Create the Komodo stack from this repo with `docker-compose.yml`. In its Environment, set:
    - `DATA_DIR`

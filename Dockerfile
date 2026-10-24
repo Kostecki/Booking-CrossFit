@@ -1,5 +1,5 @@
 # One image for both services: the web app (default command) and the worker.
-FROM node:25.8.1-bookworm-slim AS base
+FROM node:26.12.1-bookworm-slim AS base
 WORKDIR /app
 
 # Full install (better-sqlite3 may need to compile) and the web build.
@@ -7,7 +7,7 @@ FROM base AS build
 RUN apt-get update \
 	&& apt-get install -y --no-install-recommends python3 make g++ \
 	&& rm -rf /var/lib/apt/lists/* \
-	&& npm install -g pnpm@10.33.0
+	&& npm install -g pnpm@12.15.0
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY packages/core/package.json packages/core/
 COPY apps/web/package.json apps/web/
