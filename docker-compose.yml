@@ -7,7 +7,7 @@ services:
     image: ghcr.io/kostecki/booking-crossfit:latest
     restart: unless-stopped
     container_name: booking-crossfit
-    hostname: ${APP_HOSTNAME:-booking-crossfit}
+    hostname: booking-crossfit
     ports:
       - "${APP_PORT:-3000}:3000"
     environment: &env
@@ -38,6 +38,7 @@ services:
     image: ghcr.io/kostecki/booking-crossfit:latest
     restart: unless-stopped
     container_name: booking-crossfit-worker
+    hostname: booking-crossfit-worker
     command: ["node", "src/worker/index.ts"]
     environment: *env
     volumes:
@@ -57,6 +58,7 @@ services:
     image: ghcr.io/drizzle-team/gateway:latest
     restart: unless-stopped
     container_name: booking-crossfit-gateway
+    hostname: booking-crossfit-gateway
     ports:
       - "${GATEWAY_PORT:-4983}:4983"
     environment:
