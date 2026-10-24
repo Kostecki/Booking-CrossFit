@@ -15,9 +15,6 @@
 		"@types/node": "^26.6.5",
 		"typescript": "^7.0.2"
 	},
-	"volta": {
-		"node": "26.12.1"
-	},
 	"dependencies": {
 		"@booking/core": "workspace:*"
 	}

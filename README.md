@@ -33,7 +33,7 @@ Passwords and tokens are stored encrypted (AES-256-GCM) so the worker can log in
 
 ## Requirements
 
-- Node 25. It runs TypeScript directly. Pinned via Volta.
+- Node 26. It runs TypeScript directly. Pinned in `mise.toml` (`mise install`); the Dockerfile pins the same version.
 - pnpm.
 
 ## Development
