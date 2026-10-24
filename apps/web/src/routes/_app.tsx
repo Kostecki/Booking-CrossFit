@@ -19,6 +19,7 @@ import {
 	Link,
 	Outlet,
 	redirect,
+	useLocation,
 	useRouter,
 } from "@tanstack/react-router";
 import { useEffect } from "react";
@@ -44,12 +45,23 @@ const DOCK_BOTTOM_GAP = "max(8px, calc(env(safe-area-inset-bottom) - 13px))";
 // and, through AppShell, as the content's bottom offset, so the list clears the dock.
 const TAB_BAR_HEIGHT = `calc(68px + ${DOCK_BOTTOM_GAP})`;
 
-const tabs = [
+// `subPages` are reached from a tab's page and keep that tab active.
+const tabs: {
+	to: "/" | "/schedule" | "/history" | "/settings";
+	label: string;
+	icon: typeof IconSettings;
+	subPages?: string[];
+}[] = [
 	{ to: "/", label: "Bookinger", icon: IconCalendarEvent },
 	{ to: "/schedule", label: "Auto-booking", icon: IconListCheck },
 	{ to: "/history", label: "Historik", icon: IconHistory },
-	{ to: "/settings", label: "Indstillinger", icon: IconSettings },
-] as const;
+	{
+		to: "/settings",
+		label: "Indstillinger",
+		icon: IconSettings,
+		subPages: ["/admin"],
+	},
+];
 
 // Reload the current page when the app comes back to the foreground, e.g. after
 // booking in the BookingBoard app, and skip the server's cached bookings for it.
@@ -69,6 +81,7 @@ function useRefreshOnResume() {
 
 function Layout() {
 	const { user } = Route.useRouteContext();
+	const pathname = useLocation({ select: (location) => location.pathname });
 	useRefreshOnResume();
 	return (
 		<AppShell
@@ -144,35 +157,37 @@ function Layout() {
 						boxShadow: "0 4px 20px rgba(22, 28, 36, 0.12)",
 					}}
 				>
-					{tabs.map(({ to, label, icon: Icon }) => (
-						<UnstyledButton
-							key={to}
-							component={Link}
-							to={to}
-							activeOptions={{ exact: true }}
-							h="100%"
-							style={{
-								flex: 1,
-								minWidth: 0,
-								borderRadius: 15,
-								color: "var(--mantine-color-ink-4)",
-								transition: "background-color 160ms ease, color 160ms ease",
-							}}
-							activeProps={{
-								style: {
-									color: "var(--mantine-color-green-9)",
-									backgroundColor: "rgba(97, 169, 40, 0.14)",
-								},
-							}}
-						>
-							<Stack gap={2} align="center" justify="center" h="100%">
-								<Icon size={22} stroke={1.75} />
-								<Text fz={11} fw={500} lh={1.2} c="inherit">
-									{label}
-								</Text>
-							</Stack>
-						</UnstyledButton>
-					))}
+					{tabs.map(({ to, label, icon: Icon, subPages }) => {
+						const active = pathname === to || !!subPages?.includes(pathname);
+						return (
+							<UnstyledButton
+								key={to}
+								component={Link}
+								to={to}
+								aria-current={active ? "page" : undefined}
+								h="100%"
+								style={{
+									flex: 1,
+									minWidth: 0,
+									borderRadius: 15,
+									color: active
+										? "var(--mantine-color-green-9)"
+										: "var(--mantine-color-ink-4)",
+									backgroundColor: active
+										? "rgba(97, 169, 40, 0.14)"
+										: undefined,
+									transition: "background-color 160ms ease, color 160ms ease",
+								}}
+							>
+								<Stack gap={2} align="center" justify="center" h="100%">
+									<Icon size={22} stroke={1.75} />
+									<Text fz={11} fw={500} lh={1.2} c="inherit">
+										{label}
+									</Text>
+								</Stack>
+							</UnstyledButton>
+						);
+					})}
 				</Group>
 			</AppShell.Footer>
 		</AppShell>

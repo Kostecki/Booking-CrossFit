@@ -1,5 +1,6 @@
 import {
 	ActionIcon,
+	Anchor,
 	Badge,
 	Button,
 	Code,
@@ -14,8 +15,13 @@ import {
 	TextInput,
 	Title,
 } from "@mantine/core";
-import { IconPlus, IconX } from "@tabler/icons-react";
-import { createFileRoute, redirect, useRouter } from "@tanstack/react-router";
+import { IconChevronLeft, IconPlus, IconX } from "@tabler/icons-react";
+import {
+	createFileRoute,
+	Link,
+	redirect,
+	useRouter,
+} from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
 
@@ -65,7 +71,15 @@ function Admin() {
 
 	return (
 		<Stack gap="lg">
-			<Title order={4}>Admin</Title>
+			<Stack gap={4}>
+				<Anchor component={Link} to="/settings" size="sm" w="fit-content">
+					<Group gap={2} wrap="nowrap">
+						<IconChevronLeft size={16} />
+						Indstillinger
+					</Group>
+				</Anchor>
+				<Title order={4}>Admin</Title>
+			</Stack>
 			<RunTimes saved={data.runTimes} nextRun={data.heartbeat?.nextRun} />
 			<Worker heartbeat={data.heartbeat} runAllPending={data.runAllPending} />
 			<Users users={data.users} />
