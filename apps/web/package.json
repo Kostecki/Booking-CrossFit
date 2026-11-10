@@ -31,7 +31,7 @@
 		"nitro": "3.0.260610-beta",
 		"react": "^19.2.0",
 		"react-dom": "^19.2.0",
-		"web-push": "3.6.7"
+		"web-push": "4.0.0"
 	},
 	"devDependencies": {
 		"@tanstack/router-cli": "^1.167.45",
