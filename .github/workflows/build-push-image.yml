@@ -1,11 +1,12 @@
 name: Build & Push Docker Image
 
-# Every branch publishes an image (main: :latest; others: :<branch>); only main deploys.
+# main builds, publishes (:latest) and deploys the image. Pull requests run the checks;
+# they build the image (without pushing it) only when they change what goes into it.
 on:
   push:
     branches:
-      - "**"
-    paths:
+      - main
+    paths: &paths
       - "apps/web/**"
       - "packages/core/**"
       - "Dockerfile"
@@ -16,6 +17,8 @@ on:
       - "pnpm-workspace.yaml"
       - "biome.json"
       - ".github/workflows/build-push-image.yml"
+  pull_request:
+    paths: *paths
   workflow_dispatch:
 
 jobs:
@@ -23,6 +26,10 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      pull-requests: read
+    outputs:
+      # Build the image on main/manual runs, and on PRs that change what goes into it
+      image: ${{ github.event_name != 'pull_request' || steps.changes.outputs.image == 'true' }}
 
     steps:
       - name: Checkout
@@ -49,8 +56,24 @@ jobs:
       - name: Typecheck web
         run: pnpm --filter @booking/web typecheck
 
+      - name: Build web
+        run: pnpm --filter @booking/web build
+
+      - name: Does this PR change the image?
+        id: changes
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          files=$(gh pr diff "$PR" --name-only -R "$GITHUB_REPOSITORY")
+          if grep -qxE 'Dockerfile|\.dockerignore|pnpm-lock\.yaml|pnpm-workspace\.yaml|mise\.toml|\.github/workflows/build-push-image\.yml' <<< "$files"; then
+            echo "image=true" >> "$GITHUB_OUTPUT"
+          fi
+
   build:
     needs: test
+    if: needs.test.outputs.image == 'true'
     runs-on: ${{ matrix.runner }}
     permissions:
       contents: read
@@ -76,6 +99,7 @@ jobs:
         run: echo "IMAGE_NAME=$(echo '${{ env.IMAGE_NAME }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
 
       - name: Log in to GitHub Container Registry
+        if: github.event_name != 'pull_request'
         uses: docker/login-action@v4.8.0
         with:
           registry: ${{ env.REGISTRY }}
@@ -85,28 +109,30 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4.4.1
 
+      # Pull requests build the image but push nothing
       - name: Build and push by digest
         id: build
         uses: docker/build-push-action@v7.4.0
         with:
           context: .
-          push: true
           provenance: false # Disable provenance to avoid unknown/unknown
           sbom: false # Disable sbom to avoid unknown/unknown
           platforms: ${{ matrix.platform }}
           build-args: |
             COMMIT_SHA=${{ github.sha }}
-          outputs: type=image,name=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }},push-by-digest=true,name-canonical=true
+          outputs: type=image,name=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=${{ github.event_name != 'pull_request' }}
           cache-from: type=gha,scope=${{ matrix.platform }}
           cache-to: type=gha,mode=max,scope=${{ matrix.platform }}
 
       - name: Export digest
+        if: github.event_name != 'pull_request'
         run: |
           mkdir -p /tmp/digests
           digest="${{ steps.build.outputs.digest }}"
           touch "/tmp/digests/${digest#sha256:}"
 
       - name: Upload digest
+        if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@v7.0.2
         with:
           name: digest-${{ matrix.platform == 'linux/amd64' && 'amd64' || 'arm64' }}
@@ -116,6 +142,7 @@ jobs:
   merge:
     runs-on: ubuntu-latest
     needs: build
+    if: github.event_name != 'pull_request'
     permissions:
       contents: read
       packages: write
@@ -145,7 +172,7 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4.4.1
 
-      # main -> :latest + :sha-<short>; other branches -> :<branch> + :sha-<short>
+      # main -> :latest + :sha-<short>; a manual run on another branch -> :sha-<short>
       - name: Extract metadata
         id: meta
         uses: docker/metadata-action@v6.2.0
@@ -154,7 +181,6 @@ jobs:
           tags: |
             type=sha,prefix=sha-
             type=raw,value=latest,enable={{is_default_branch}}
-            type=ref,event=branch,enable=${{ github.ref_name != github.event.repository.default_branch }}
 
       - name: Create and push manifest
         working-directory: /tmp/digests
