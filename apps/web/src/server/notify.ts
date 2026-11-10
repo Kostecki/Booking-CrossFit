@@ -1,6 +1,7 @@
 import "@tanstack/react-start/server-only";
 import { eq } from "drizzle-orm";
-import webpush, { WebPushError } from "web-push";
+import * as webpush from "web-push";
+import { WebPushError } from "web-push";
 
 import { db } from "#/db/index.ts";
 import { pushSubscriptions } from "#/db/schema.ts";
