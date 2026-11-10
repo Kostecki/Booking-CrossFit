@@ -59,6 +59,7 @@ IP: some networks don't resolve `.local` names for the phone even when the Mac i
 The phone must be on the same network; a new IP just gets a new certificate on the next start.
 
 One-time setup on the iPhone:
+
 1. AirDrop `$(mkcert -CAROOT)/rootCA.pem` to the phone and install the profile
    (Settings → General → VPN & Device Management).
 2. Turn on full trust for it: Settings → General → About → Certificate Trust Settings.
@@ -66,6 +67,7 @@ One-time setup on the iPhone:
 Optionally run `mkcert -install` to trust the same certificate in the Mac's browsers.
 
 Worker flags for testing:
+
 - `DRY_RUN=1` logs without booking.
 - `--daily-now` runs the daily job at startup.
 - `--no-jitter` skips the random delays.
@@ -87,6 +89,7 @@ Migrations are applied when the server or the worker starts. A dev server that w
 ## Deploy
 
 This is set up like the other homelab projects:
+
 - CI (`.github/workflows/build-push-image.yml`) tests the code, builds amd64 + arm64 images on native runners, and publishes them to `ghcr.io/kostecki/booking-crossfit`.
 - Pushes to main are tagged `:latest` and `:sha-<short>`, then deployed through Komodo (`Kostecki/shared-actions` deploy-komodo, over Tailscale).
 - Pushes to other branches publish `:<branch>` and `:sha-<short>` without deploying.
@@ -94,6 +97,7 @@ This is set up like the other homelab projects:
 The Komodo stack deploys `docker-compose.yml`. It runs `web` (port `${APP_PORT:-3000}`) and `worker` from the same image, sharing the SQLite database in `${DATA_DIR}/data`.
 
 Setup:
+
 1. Create the data folder on the server and give it to the image's `node` user: `sudo chown -R 1000:1000 <docker root>/projects/booking-crossfit/data`.
 2. Create the Komodo stack from this repo with `docker-compose.yml`. In its Environment, set:
    - `DATA_DIR`
