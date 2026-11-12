@@ -1,5 +1,5 @@
 # One image for both services: the web app (default command) and the worker.
-FROM node:26.13.0-bookworm-slim AS base
+FROM node:26.13.1-bookworm-slim AS base
 WORKDIR /app
 
 # Full install (better-sqlite3 may need to compile) and the web build.
