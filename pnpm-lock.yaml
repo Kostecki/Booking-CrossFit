@@ -204,8 +204,8 @@ importers:
         specifier: 9.8.0
         version: 9.8.0(@mantine/core@9.8.0(@mantine/hooks@9.8.0(react@19.3.1))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(@mantine/hooks@9.8.0(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       '@tabler/icons-react':
-        specifier: 3.51.0
-        version: 3.51.0(react@19.3.1)
+        specifier: 3.52.0
+        version: 3.52.0(react@19.3.1)
       '@tanstack/react-router':
         specifier: 1.170.46
         version: 1.170.46(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
@@ -213,17 +213,17 @@ importers:
         specifier: 1.169.5
         version: 1.169.5(esbuild@0.28.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(rolldown@1.2.15)(supports-color@10.2.2)(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(sugarss@5.0.2(postcss@8.5.33))(tsx@4.23.15))
       better-sqlite3:
-        specifier: 13.1.1
-        version: 13.1.1
+        specifier: 13.2.0
+        version: 13.2.0
       croner:
-        specifier: 11.0.0
-        version: 11.0.0
+        specifier: 11.0.1
+        version: 11.0.1
       drizzle-orm:
         specifier: 0.45.4
-        version: 0.45.4(@types/better-sqlite3@9.6.0)(better-sqlite3@13.1.1)
+        version: 0.45.4(@types/better-sqlite3@9.6.0)(better-sqlite3@13.2.0)
       nitro:
         specifier: 3.0.260610-beta
-        version: 3.0.260610-beta(better-sqlite3@13.1.1)(chokidar@5.0.0)(drizzle-orm@0.45.4(@types/better-sqlite3@9.6.0)(better-sqlite3@13.1.1))(jiti@2.7.0)(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(sugarss@5.0.2(postcss@8.5.33))(tsx@4.23.15))
+        version: 3.0.260610-beta(better-sqlite3@13.2.0)(chokidar@5.0.0)(drizzle-orm@0.45.4(@types/better-sqlite3@9.6.0)(better-sqlite3@13.2.0))(jiti@2.7.0)(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(sugarss@5.0.2(postcss@8.5.33))(tsx@4.23.15))
       react:
         specifier: 19.3.1
         version: 19.3.1
@@ -1152,13 +1152,13 @@ packages:
   '@rolldown/pluginutils@1.0.1':
     resolution: {integrity: sha512-2j9bGt5Jh8hj+vPtgzPtl72j0yRxHAyumoo6TNfAjsLB04UtpSvPbPcDcBMxz7n+9CYB0c1GxQFxYRg2jimqGw==}
 
-  '@tabler/icons-react@3.51.0':
-    resolution: {integrity: sha512-F3GGChIUspsCq+HhXtJezc1W9QRcRlEG07Jb4dKUR1TV+mq1uvY7+G46n1fZE02jhQUOVuOoi445Bk1O9mFrDg==}
+  '@tabler/icons-react@3.52.0':
+    resolution: {integrity: sha512-tN22mz4KLVpR+psqu9bAsT4b1IdhKcPGA1fDhyQerIv+8azyowdWzf8e0hWxQSsIxDTfkipGfiL0/uHNmpbvgw==}
     peerDependencies:
       react: '>= 16'
 
-  '@tabler/icons@3.51.0':
-    resolution: {integrity: sha512-0pinvPZz7YeX+OSfxuEAbnEPWbocVXW5iU8h5lh41pYG8sZuQfpWECC980lxOT0clGIcNGn8xsBr+zKaRGdA/g==}
+  '@tabler/icons@3.52.0':
+    resolution: {integrity: sha512-dldKlJNfO/gZnGLcIY0X2EFFKIMGwL/rEvTqglvBgAPFiwj9pZOCN5V3Sf0Gyjq6foX4VQmLdOmsS4w5FdWKAw==}
 
   '@tanstack/history@1.162.5':
     resolution: {integrity: sha512-w1+YvwmTkwt5n8yUqEH3IWZ9DsmorCZW/EQ3KYHnqEgIkOZpH54NvW6/Epq3Dzb8H0ifIeYX8PExvrNLIH5FIA==}
@@ -1481,8 +1481,8 @@ packages:
     engines: {node: '>=6.0.0'}
     hasBin: true
 
-  better-sqlite3@13.1.1:
-    resolution: {integrity: sha512-JjyLCATp+VLxZVFyWkicyzKYwpEFLCrV4MmshW97xv3JXdhw5jBDcsbEWRGm2L/96E+k7rtjON8q9nml05h3Pw==}
+  better-sqlite3@13.2.0:
+    resolution: {integrity: sha512-Z8Q/9x/uNyKxA1v4FNodyItRVRw1TeKBrmj32JhxhR0ceNcBY+wMobt/Bv7M7TzwPAXjnZRtNaEsATnUZSKWZQ==}
     engines: {node: '>=22'}
 
   bn.js@4.12.5:
@@ -1541,8 +1541,8 @@ packages:
   cookie-es@3.1.1:
     resolution: {integrity: sha512-UaXxwISYJPTr9hwQxMFYZ7kNhSXboMXP+Z3TRX6f1/NyaGPfuNUZOWP1pUEb75B2HjfklIYLVRfWiFZJyC6Npg==}
 
-  croner@11.0.0:
-    resolution: {integrity: sha512-T17ADjdttrVToyzLpLq9Xb9xzcMwpQ/M3Qs9szhh0MVNTbv6NWQ9OFYa2qlzPYXFMn+uoDlnW1IpIv6cAvFtyA==}
+  croner@11.0.1:
+    resolution: {integrity: sha512-/fmHcoczPy5cMcmJ6ex7J7LAwb545V1dNmRrdDGP3hwStg/06IYP56YgBySCSdWGDz2PJYQyDukaR8b8R5o2HA==}
     engines: {node: '>=18.0'}
 
   crossws@0.4.15:
@@ -3048,12 +3048,12 @@ snapshots:
 
   '@rolldown/pluginutils@1.0.1': {}
 
-  '@tabler/icons-react@3.51.0(react@19.3.1)':
+  '@tabler/icons-react@3.52.0(react@19.3.1)':
     dependencies:
-      '@tabler/icons': 3.51.0
+      '@tabler/icons': 3.52.0
       react: 19.3.1
 
-  '@tabler/icons@3.51.0': {}
+  '@tabler/icons@3.52.0': {}
 
   '@tanstack/history@1.162.5': {}
 
@@ -3385,7 +3385,7 @@ snapshots:
 
   baseline-browser-mapping@2.11.30: {}
 
-  better-sqlite3@13.1.1:
+  better-sqlite3@13.2.0:
     dependencies:
       node-addon-api: 8.9.2
 
@@ -3438,7 +3438,7 @@ snapshots:
 
   cookie-es@3.1.1: {}
 
-  croner@11.0.0: {}
+  croner@11.0.1: {}
 
   crossws@0.4.15(srvx@0.11.22):
     optionalDependencies:
@@ -3448,10 +3448,10 @@ snapshots:
 
   csstype@3.2.3: {}
 
-  db0@0.3.4(better-sqlite3@13.1.1)(drizzle-orm@0.45.4(@types/better-sqlite3@9.6.0)(better-sqlite3@13.1.1)):
+  db0@0.3.4(better-sqlite3@13.2.0)(drizzle-orm@0.45.4(@types/better-sqlite3@9.6.0)(better-sqlite3@13.2.0)):
     optionalDependencies:
-      better-sqlite3: 13.1.1
-      drizzle-orm: 0.45.4(@types/better-sqlite3@9.6.0)(better-sqlite3@13.1.1)
+      better-sqlite3: 13.2.0
+      drizzle-orm: 0.45.4(@types/better-sqlite3@9.6.0)(better-sqlite3@13.2.0)
 
   debug@4.4.3(supports-color@10.2.2):
     dependencies:
@@ -3477,10 +3477,10 @@ snapshots:
       esbuild: 0.25.12
       tsx: 4.23.15
 
-  drizzle-orm@0.45.4(@types/better-sqlite3@9.6.0)(better-sqlite3@13.1.1):
+  drizzle-orm@0.45.4(@types/better-sqlite3@9.6.0)(better-sqlite3@13.2.0):
     optionalDependencies:
       '@types/better-sqlite3': 9.6.0
-      better-sqlite3: 13.1.1
+      better-sqlite3: 13.2.0
 
   ecdsa-sig-formatter@1.0.11:
     dependencies:
@@ -3723,11 +3723,11 @@ snapshots:
 
   nf3@0.3.24: {}
 
-  nitro@3.0.260610-beta(better-sqlite3@13.1.1)(chokidar@5.0.0)(drizzle-orm@0.45.4(@types/better-sqlite3@9.6.0)(better-sqlite3@13.1.1))(jiti@2.7.0)(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(sugarss@5.0.2(postcss@8.5.33))(tsx@4.23.15)):
+  nitro@3.0.260610-beta(better-sqlite3@13.2.0)(chokidar@5.0.0)(drizzle-orm@0.45.4(@types/better-sqlite3@9.6.0)(better-sqlite3@13.2.0))(jiti@2.7.0)(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(sugarss@5.0.2(postcss@8.5.33))(tsx@4.23.15)):
     dependencies:
       consola: 3.4.2
       crossws: 0.4.15(srvx@0.11.22)
-      db0: 0.3.4(better-sqlite3@13.1.1)(drizzle-orm@0.45.4(@types/better-sqlite3@9.6.0)(better-sqlite3@13.1.1))
+      db0: 0.3.4(better-sqlite3@13.2.0)(drizzle-orm@0.45.4(@types/better-sqlite3@9.6.0)(better-sqlite3@13.2.0))
       env-runner: 0.1.16
       h3: 2.0.1-rc.22(crossws@0.4.15(srvx@0.11.22))
       hookable: 6.1.2
@@ -3738,7 +3738,7 @@ snapshots:
       rolldown: 1.2.15
       srvx: 0.11.22
       unenv: 2.0.0-rc.24
-      unstorage: 2.0.0-alpha.7(chokidar@5.0.0)(db0@0.3.4(better-sqlite3@13.1.1)(drizzle-orm@0.45.4(@types/better-sqlite3@9.6.0)(better-sqlite3@13.1.1)))(ofetch@2.0.0-alpha.3)
+      unstorage: 2.0.0-alpha.7(chokidar@5.0.0)(db0@0.3.4(better-sqlite3@13.2.0)(drizzle-orm@0.45.4(@types/better-sqlite3@9.6.0)(better-sqlite3@13.2.0)))(ofetch@2.0.0-alpha.3)
     optionalDependencies:
       jiti: 2.7.0
       vite: 8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(sugarss@5.0.2(postcss@8.5.33))(tsx@4.23.15)
@@ -4057,10 +4057,10 @@ snapshots:
       rolldown: 1.2.15
       vite: 8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(sugarss@5.0.2(postcss@8.5.33))(tsx@4.23.15)
 
-  unstorage@2.0.0-alpha.7(chokidar@5.0.0)(db0@0.3.4(better-sqlite3@13.1.1)(drizzle-orm@0.45.4(@types/better-sqlite3@9.6.0)(better-sqlite3@13.1.1)))(ofetch@2.0.0-alpha.3):
+  unstorage@2.0.0-alpha.7(chokidar@5.0.0)(db0@0.3.4(better-sqlite3@13.2.0)(drizzle-orm@0.45.4(@types/better-sqlite3@9.6.0)(better-sqlite3@13.2.0)))(ofetch@2.0.0-alpha.3):
     optionalDependencies:
       chokidar: 5.0.0
-      db0: 0.3.4(better-sqlite3@13.1.1)(drizzle-orm@0.45.4(@types/better-sqlite3@9.6.0)(better-sqlite3@13.1.1))
+      db0: 0.3.4(better-sqlite3@13.2.0)(drizzle-orm@0.45.4(@types/better-sqlite3@9.6.0)(better-sqlite3@13.2.0))
       ofetch: 2.0.0-alpha.3
 
   update-browserslist-db@1.3.4(browserslist@4.29.4):
