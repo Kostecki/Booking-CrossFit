@@ -53,7 +53,7 @@ async function exclusive<T>(userId: number, fn: () => Promise<T>): Promise<T> {
 }
 
 async function runDaily(): Promise<void> {
-	const startDelay = randomMs(0, 10 * 60_000);
+	const startDelay = randomMs(0, 5 * 60_000);
 	console.log(`Daily run starts in ${Math.round(startDelay / 1000)}s`);
 	await sleep(startDelay);
 
@@ -72,7 +72,7 @@ async function runDaily(): Promise<void> {
 
 	const retry: number[] = [];
 	for (const [index, userId] of userIds.entries()) {
-		if (index > 0) await sleep(randomMs(30_000, 120_000));
+		if (index > 0) await sleep(randomMs(30_000, 60_000));
 		if ((await runDailyForUser(userId)) === "transient_error")
 			retry.push(userId);
 	}
@@ -83,7 +83,7 @@ async function runDaily(): Promise<void> {
 		);
 		await sleep(noJitter ? 0 : RETRY_DELAY_MS);
 		for (const [index, userId] of retry.entries()) {
-			if (index > 0) await sleep(randomMs(30_000, 120_000));
+			if (index > 0) await sleep(randomMs(30_000, 60_000));
 			await runDailyForUser(userId);
 		}
 	}
