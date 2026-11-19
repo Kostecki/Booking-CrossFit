@@ -13,6 +13,15 @@ import { type ReactNode, useEffect } from "react";
 import { getCurrentUser } from "#/server/auth.functions.ts";
 import { INK, PAGE_BACKGROUND, theme } from "#/theme.ts";
 
+// The dev server gets an icon with a DEV ribbon, so a home-screen copy of it is easy to
+// tell from prod. (iOS takes the icon from these tags when you add it to the home screen.)
+const FAVICON = import.meta.env.DEV
+	? "/favicon-dev.png"
+	: "/favicon-574d42fb.png";
+const APPLE_TOUCH_ICON = import.meta.env.DEV
+	? "/icons/apple-touch-icon-dev.png"
+	: "/icons/apple-touch-icon-37f16848.png";
+
 // iOS launch images need a media query and PNG with matching pixel dimensions.
 const startupScreens = [
 	{ width: 320, height: 568, scale: 2 },
@@ -51,8 +60,8 @@ export const Route = createRootRoute({
 		],
 		links: [
 			{ rel: "manifest", href: "/manifest.webmanifest?v=4" },
-			{ rel: "icon", type: "image/png", href: "/favicon-574d42fb.png" },
-			{ rel: "apple-touch-icon", href: "/icons/apple-touch-icon-37f16848.png" },
+			{ rel: "icon", type: "image/png", href: FAVICON },
+			{ rel: "apple-touch-icon", href: APPLE_TOUCH_ICON },
 			...startupScreens.map(({ width, height, scale }) => ({
 				rel: "apple-touch-startup-image",
 				href: `/startup/startup-${width * scale}x${height * scale}-auto-cfr.png`,
