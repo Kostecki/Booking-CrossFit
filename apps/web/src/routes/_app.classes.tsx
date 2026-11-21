@@ -151,6 +151,7 @@ function ClassCard({ cls, onBook }: { cls: ClassOption; onBook: () => void }) {
 					<Button
 						size="xs"
 						variant="light"
+						color="green"
 						onClick={onBook}
 						style={{ flexShrink: 0 }}
 					>
