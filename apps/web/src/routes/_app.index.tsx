@@ -1,6 +1,5 @@
 import { runScheduleLabel } from "@booking/core/runTimes";
 import {
-	Badge,
 	Button,
 	Card,
 	Divider,
@@ -9,9 +8,7 @@ import {
 	Stack,
 	Text,
 	Title,
-	Tooltip,
 } from "@mantine/core";
-import { useClickOutside } from "@mantine/hooks";
 import { IconPlayerPlay } from "@tabler/icons-react";
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
@@ -21,6 +18,11 @@ import { ConfirmButton } from "#/components/ConfirmButton.tsx";
 import { takeFreshRequest } from "#/components/freshness.ts";
 import { notifyError, notifyInfo } from "#/components/notify.ts";
 import { useRunTimes } from "#/components/runSchedule.ts";
+import {
+	classBadge,
+	STATE_BADGE,
+	StatusBadge,
+} from "#/components/StatusBadge.tsx";
 import { requestRun } from "#/server/runs.functions.ts";
 import {
 	getUpcoming,
@@ -34,16 +36,6 @@ export const Route = createFileRoute("/_app/")({
 	pendingComponent: () => <Loader m="xl" />,
 	component: Upcoming,
 });
-
-const STATE_BADGE: Record<
-	UpcomingClass["state"],
-	{ label: string; color: string }
-> = {
-	booked: { label: "Booket", color: "green" },
-	waitlist: { label: "Venteliste", color: "yellow" },
-	planned: { label: "Planlagt", color: "gray" },
-	cancelled: { label: "Afmeldt", color: "red" },
-};
 
 function Upcoming() {
 	const { user } = Route.useRouteContext();
@@ -138,14 +130,7 @@ function ClassRow({ cls }: { cls: UpcomingClass }) {
 	const [patch, setPatch] =
 		useState<Partial<Pick<UpcomingClass, "skipped" | "rebookPending">>>();
 	const view = { ...cls, ...patch };
-	// One pill per row: a cancelled class reads "Genbookes" once a rebooking is queued.
-	const badge = view.skipped
-		? { label: "Springes over", color: "gray" }
-		: view.state === "cancelled" && view.rebookPending
-			? { label: "Genbookes", color: "blue" }
-			: view.state === "waitlist" && view.waitlistPosition
-				? { label: `Venteliste (#${view.waitlistPosition})`, color: "yellow" }
-				: STATE_BADGE[view.state];
+	const badge = classBadge(view) ?? STATE_BADGE[view.state];
 	const held = view.state === "booked" || view.state === "waitlist";
 
 	async function act(fn: () => Promise<unknown>, optimistic?: typeof patch) {
@@ -246,62 +231,11 @@ function ClassRow({ cls }: { cls: UpcomingClass }) {
 							{cls.occupancy ? ` (${cls.occupancy})` : ""}
 						</Text>
 						<StatusBadge label={badge.label} color={badge.color} />
+						{cls.extra && <StatusBadge label="Ekstra" color="grape" />}
 					</Group>
 				</Stack>
 				{action}
 			</Group>
 		</Card>
-	);
-}
-
-// Badges whose meaning isn't obvious get a tooltip; touch opens it too, since phones can't hover.
-const BADGE_HELP: Record<string, string> = {
-	Afmeldt:
-		"Du er afmeldt holdet. Det bookes ikke igen automatisk - tryk Genbook, hvis du vil booke igen.",
-	Genbookes:
-		"Bookes igen ved næste kørsel, eller når du trykker Book nu - hvis der er plads.",
-};
-
-function StatusBadge({ label, color }: { label: string; color: string }) {
-	const help = BADGE_HELP[label];
-	if (!help) {
-		return (
-			<Badge size="sm" variant="light" color={color}>
-				{label}
-			</Badge>
-		);
-	}
-	return <HelpBadge label={label} color={color} help={help} />;
-}
-
-// Controlled rather than Mantine's built-in events, which don't open on a tap: a tap
-// toggles it and a tap elsewhere closes it; hover only reacts to a real mouse, since
-// phones also fire pointerenter on tap, which would open and immediately re-close it.
-function HelpBadge({
-	label,
-	color,
-	help,
-}: {
-	label: string;
-	color: string;
-	help: string;
-}) {
-	const [opened, setOpened] = useState(false);
-	const ref = useClickOutside(() => setOpened(false));
-	return (
-		<Tooltip label={help} opened={opened} multiline w={240} withArrow>
-			<Badge
-				ref={ref}
-				size="sm"
-				variant="light"
-				color={color}
-				style={{ cursor: "help" }}
-				onClick={() => setOpened((o) => !o)}
-				onPointerEnter={(e) => e.pointerType === "mouse" && setOpened(true)}
-				onPointerLeave={(e) => e.pointerType === "mouse" && setOpened(false)}
-			>
-				{label}
-			</Badge>
-		</Tooltip>
 	);
 }

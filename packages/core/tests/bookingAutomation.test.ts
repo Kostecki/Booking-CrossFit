@@ -3,6 +3,8 @@ import { test } from "node:test";
 
 import {
 	type BookingAutomationConfig,
+	BookingVerificationError,
+	bookOrReactivate,
 	occupancy,
 	runBookingAutomation,
 	waitingListPosition,
@@ -237,6 +239,108 @@ test("unknown statuses and waiting-list bookings are logged for debugging", asyn
 			);
 		},
 		joinWaitingList,
+	);
+});
+
+const registration = (
+	id: number,
+	classId: number,
+	status: string,
+): ClassRegistration => {
+	const c = schedule.find((x) => x.id === classId);
+	if (!c) throw new Error(`Unknown class ${classId}`);
+	return { id, classId, className: c.title, begins: c.begins, status };
+};
+
+test("bookOrReactivate posts a new registration when none exists", async () => {
+	await withFakeApi([], schedule, async (requests) => {
+		const { verified } = await bookOrReactivate("test", {
+			classId: 90,
+			accountId: 1,
+			bookings: [],
+		});
+		assert.equal(verified.classId, 90);
+		assert.ok(requests.includes("POST /api/Participations"));
+	});
+});
+
+test("bookOrReactivate reuses a cancelled registration", async () => {
+	const bookings = [registration(500, 90, "OptedOut")];
+	await withFakeApi(
+		bookings,
+		schedule,
+		async (requests) => {
+			const { verified } = await bookOrReactivate("test", {
+				classId: 90,
+				accountId: 1,
+				bookings: [...bookings],
+			});
+			assert.equal(verified.id, 500);
+			assert.ok(requests.includes("PUT /api/Participations/500"));
+			assert.ok(!requests.includes("POST /api/Participations"));
+		},
+		(method, path) => {
+			if (method !== "PUT" || path !== "/api/Participations/500") return;
+			bookings[0] = { ...bookings[0], status: "SignedUp" };
+			return json(bookings[0]);
+		},
+	);
+});
+
+test("bookOrReactivate throws when the booking isn't held afterwards", async () => {
+	await withFakeApi(
+		[],
+		schedule,
+		async () => {
+			await assert.rejects(
+				bookOrReactivate("test", { classId: 90, accountId: 1, bookings: [] }),
+				BookingVerificationError,
+			);
+		},
+		(method, path) =>
+			method === "POST" && path === "/api/Participations"
+				? json({})
+				: undefined,
+	);
+});
+
+test("after a one-off, the class cancelled to make room is rebooked before later ones", async () => {
+	// Held: a one-off (90) plus classes 1-4; class 5 was cancelled to make room.
+	const bookings = [
+		registration(501, 90, "SignedUp"),
+		registration(502, 1, "SignedUp"),
+		registration(503, 2, "SignedUp"),
+		registration(504, 3, "SignedUp"),
+		registration(505, 4, "SignedUp"),
+		registration(506, 5, "OptedOut"),
+	];
+	await withFakeApi(
+		bookings,
+		schedule,
+		async () => {
+			// While the one-off is held, the account is at the limit: nothing to do.
+			assert.deepEqual(
+				await runBookingAutomation(
+					config({ slots, pendingRebookClassIds: [5] }),
+				),
+				[],
+			);
+			// The one-off has passed (here: dropped from the list); the spot goes to 5, not 6.
+			bookings.shift();
+			const booked = await runBookingAutomation(
+				config({ slots, pendingRebookClassIds: [5] }),
+			);
+			assert.deepEqual(
+				booked.map((b) => [b.classId, b.rebooked]),
+				[[5, true]],
+			);
+		},
+		(method, path) => {
+			if (method !== "PUT" || path !== "/api/Participations/506") return;
+			const i = bookings.findIndex((b) => b.id === 506);
+			bookings[i] = { ...bookings[i], status: "SignedUp" };
+			return json(bookings[i]);
+		},
 	);
 });
 

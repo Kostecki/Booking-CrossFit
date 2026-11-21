@@ -11,7 +11,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { and, eq, lt } from "drizzle-orm";
 
 import { db } from "#/db/index.ts";
-import { rebookRequests, scheduleSlots, skips } from "#/db/schema.ts";
+import { scheduleSlots, skips } from "#/db/schema.ts";
 
 import {
 	forgetBookings,
@@ -22,6 +22,13 @@ import {
 	withBookingToken,
 } from "./bookingboard.ts";
 import { authMiddleware } from "./middleware.ts";
+import {
+	deleteRebook,
+	deleteSkip,
+	pendingRebookClassIds,
+	skippedClassIds,
+	upsertRebook,
+} from "./rebooks.ts";
 import { recordWaitlistDebug } from "./waitlistDebug.ts";
 
 export type UpcomingClass = {
@@ -35,6 +42,8 @@ export type UpcomingClass = {
 	state: "booked" | "waitlist" | "planned" | "cancelled";
 	skipped: boolean;
 	rebookPending: boolean;
+	// Held but not from the schedule: a one-off booked from the Hold tab (or BookingBoard).
+	extra: boolean;
 	occupancy?: string; // "12/16": seats taken (excluding the waiting list) / total
 	waitlistPosition?: number; // 1-based, when on the waiting list
 };
@@ -75,27 +84,8 @@ export const getUpcoming = createServerFn({ method: "GET" })
 				.from(scheduleSlots)
 				.where(eq(scheduleSlots.userId, user.id))
 				.all();
-			const skipped = new Set(
-				db
-					.select()
-					.from(skips)
-					.where(eq(skips.userId, user.id))
-					.all()
-					.map((s) => s.classId),
-			);
-			const rebooks = new Set(
-				db
-					.select()
-					.from(rebookRequests)
-					.where(
-						and(
-							eq(rebookRequests.userId, user.id),
-							eq(rebookRequests.status, "pending"),
-						),
-					)
-					.all()
-					.map((r) => r.classId),
-			);
+			const skipped = skippedClassIds(user.id);
+			const rebooks = pendingRebookClassIds(user.id);
 			const classesById = new Map(classes.map((c) => [c.id, c]));
 
 			const rows = new Map<number, UpcomingClass>();
@@ -108,6 +98,7 @@ export const getUpcoming = createServerFn({ method: "GET" })
 				const ms = Date.parse(begins);
 				const { hour, minute } = getTimePartsInZone(ms, TIME_ZONE);
 				const cls = classesById.get(classId);
+				const held = state === "booked" || state === "waitlist";
 				return {
 					classId,
 					title,
@@ -117,6 +108,7 @@ export const getUpcoming = createServerFn({ method: "GET" })
 					state,
 					skipped: skipped.has(classId),
 					rebookPending: rebooks.has(classId),
+					extra: held && !(cls && matchingSlot(cls, ms, slots, TIME_ZONE)),
 					occupancy: cls ? occupancy(cls) : undefined,
 				};
 			};
@@ -258,35 +250,16 @@ export const setSkip = createServerFn({ method: "POST" })
 					})
 					.onConflictDoNothing()
 					.run();
-				db.delete(rebookRequests)
-					.where(
-						and(
-							eq(rebookRequests.userId, user.id),
-							eq(rebookRequests.classId, classId),
-						),
-					)
-					.run();
+				deleteRebook(user.id, classId);
 				return;
 			}
 
-			db.delete(skips)
-				.where(and(eq(skips.userId, user.id), eq(skips.classId, classId)))
-				.run();
+			deleteSkip(user.id, classId);
 			if (registration && isCancelled(registration.status)) {
 				upsertRebook(user.id, classId);
 			}
 		},
 	);
-
-function upsertRebook(userId: number, classId: number) {
-	db.insert(rebookRequests)
-		.values({ userId, classId })
-		.onConflictDoUpdate({
-			target: [rebookRequests.userId, rebookRequests.classId],
-			set: { status: "pending" },
-		})
-		.run();
-}
 
 /** Ask for (or withdraw) a one-time rebooking of a cancelled class. */
 export const setRebook = createServerFn({ method: "POST" })
@@ -294,18 +267,9 @@ export const setRebook = createServerFn({ method: "POST" })
 	.validator(classInput)
 	.handler(async ({ data: { classId, enabled }, context: { user } }) => {
 		if (enabled) {
-			db.delete(skips)
-				.where(and(eq(skips.userId, user.id), eq(skips.classId, classId)))
-				.run();
+			deleteSkip(user.id, classId);
 			upsertRebook(user.id, classId);
 		} else {
-			db.delete(rebookRequests)
-				.where(
-					and(
-						eq(rebookRequests.userId, user.id),
-						eq(rebookRequests.classId, classId),
-					),
-				)
-				.run();
+			deleteRebook(user.id, classId);
 		}
 	});

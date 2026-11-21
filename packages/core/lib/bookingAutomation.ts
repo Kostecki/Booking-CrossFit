@@ -241,6 +241,66 @@ export async function findCompletedRebooks(
 	);
 }
 
+/**
+ * Book a class, reusing the account's cancelled registration for it if there is one
+ * (a second registration for the same class is rejected), then verify by re-reading
+ * the bookings. Returns the verified registration; throws if it isn't held afterwards.
+ */
+export async function bookOrReactivate(
+	token: string,
+	{
+		classId,
+		accountId,
+		bookings,
+	}: { classId: number; accountId: number; bookings: ClassRegistration[] },
+): Promise<{ response: unknown; verified: ClassRegistration }> {
+	const cancelled = bookings.find(
+		(b) => b.classId === classId && CANCELLED_STATUSES.has(b.status),
+	);
+	let response: unknown;
+	if (cancelled) {
+		try {
+			response = await reactivateBooking(token, {
+				participationId: cancelled.id,
+				classHourId: classId,
+				accountId,
+			});
+		} catch (error) {
+			// The API can remove an opted-out participation when a PUT fails.
+			// Re-read before deciding whether a new POST is needed.
+			const current = await getMyBookings(token, accountId);
+			if (!current.some((b) => b.classId === classId)) {
+				response = await bookClass(token, { classHourId: classId, accountId });
+			} else if (
+				!current.some(
+					(b) => b.classId === classId && !CANCELLED_STATUSES.has(b.status),
+				)
+			) {
+				throw error;
+			}
+		}
+	} else {
+		response = await bookClass(token, { classHourId: classId, accountId });
+	}
+
+	const updated = await getMyBookings(token, accountId);
+	const verified = updated.find(
+		(b) => b.classId === classId && !CANCELLED_STATUSES.has(b.status),
+	);
+	if (!verified) throw new BookingVerificationError(classId);
+	return { response, verified };
+}
+
+export class BookingVerificationError extends Error {
+	readonly classId: number;
+
+	constructor(classId: number) {
+		super(`Booking verification failed for class ${classId}`);
+		this.classId = classId;
+		this.name = "BookingVerificationError";
+	}
+}
+
 export async function runBookingAutomation({
 	token,
 	accountId,
@@ -356,48 +416,17 @@ export async function runBookingAutomation({
 		log(
 			`${rebookRequested ? "Rebooking" : "Booking"}: ${timeLabel} on ${labelEn}`,
 		);
-		const cancelled = rebookRequested
-			? bookings.find(
-					(b) => b.classId === cls.id && CANCELLED_STATUSES.has(b.status),
-				)
-			: undefined;
-		// Kept for the waiting-list debug log below.
-		let response: unknown;
-		if (cancelled) {
-			try {
-				response = await reactivateBooking(token, {
-					participationId: cancelled.id,
-					classHourId: cls.id,
-					accountId,
-				});
-			} catch (error) {
-				// The API can remove an opted-out participation when a PUT fails.
-				// Re-read before deciding whether a new POST is needed.
-				const current = await getMyBookings(token, accountId);
-				if (!current.some((b) => b.classId === cls.id)) {
-					response = await bookClass(token, { classHourId: cls.id, accountId });
-				} else if (
-					!current.some(
-						(b) => b.classId === cls.id && !CANCELLED_STATUSES.has(b.status),
-					)
-				) {
-					throw error;
-				}
-			}
-		} else {
-			response = await bookClass(token, { classHourId: cls.id, accountId });
-		}
-
-		// Verify by re-reading the account's bookings.
-		const updated = await getMyBookings(token, accountId);
-		const verified = updated.find(
-			(b) => b.classId === cls.id && !CANCELLED_STATUSES.has(b.status),
-		);
-		if (!verified) {
+		const { response, verified } = await bookOrReactivate(token, {
+			classId: cls.id,
+			accountId,
+			// Only a requested rebook reuses a cancelled registration.
+			bookings: rebookRequested ? bookings : [],
+		}).catch((error: unknown) => {
+			if (!(error instanceof BookingVerificationError)) throw error;
 			throw new Error(
 				`Booking verification failed for ${timeLabel} on ${labelEn}`,
 			);
-		}
+		});
 
 		const onWaitingList = verified.status !== "SignedUp";
 		if (onWaitingList) {
