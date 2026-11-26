@@ -53,7 +53,7 @@ jobs:
           echo "tags=$tags" >> "$GITHUB_OUTPUT"
 
       - name: Delete them from GHCR
-        uses: dataaxiom/ghcr-cleanup-action@v1.2.2
+        uses: dataaxiom/ghcr-cleanup-action@v1.3.0
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           package: booking-crossfit
